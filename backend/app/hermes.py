@@ -1,12 +1,34 @@
 """Only boundary with Hermes: no CLI, config writes or process management."""
 
 import os
+import time
 
 import httpx
 
 
 class HermesUnavailable(Exception):
     pass
+
+
+async def status() -> dict:
+    """Probe the advertised models only; never trigger an agent run."""
+    key = os.getenv("HERMES_API_KEY", "")
+    if not key:
+        return {"status": "not_configured", "latency_ms": None}
+    base = os.getenv("HERMES_API_URL", "http://127.0.0.1:8642/v1").rstrip("/")
+    start = time.monotonic()
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(f"{base}/models", headers={"Authorization": f"Bearer {key}"})
+        if response.status_code in (401, 403):
+            return {"status": "unauthorized", "latency_ms": None}
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+            raise ValueError("Unexpected model catalogue")
+        return {"status": "connected", "latency_ms": round((time.monotonic() - start) * 1000)}
+    except (httpx.HTTPError, ValueError, TypeError):
+        return {"status": "unavailable", "latency_ms": None}
 
 
 async def complete(messages: list[dict[str, str]]) -> str:

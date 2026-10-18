@@ -45,6 +45,8 @@ class ApiTests(unittest.TestCase):
     def test_api_is_private_and_missing_configuration_fails_closed(self):
         for method, path, body in [
             ("GET", "/api/health", None),
+            ("GET", "/api/status", None),
+            ("GET", "/api/conversations", None),
             ("GET", f"/api/conversations/{self.conversation_id}", None),
             ("POST", "/api/chat", {"conversation_id": self.conversation_id, "message": "Hi"}),
         ]:
@@ -72,6 +74,55 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/health", headers=self.headers).json()["messages"], 4)
         other = self.client.get(f"/api/conversations/{uuid4()}", headers=self.headers)
         self.assertEqual(other.json()["messages"], [])
+        listing = self.client.get('/api/conversations', headers=self.headers).json()
+        self.assertEqual(len(listing['conversations']), 1)
+        self.assertEqual(listing['conversations'][0]['title'], 'Bonjour')
+        self.assertEqual(listing['conversations'][0]['id'], self.conversation_id)
+        self.assertEqual(listing['conversations'][0]['messages'], 4)
+        self.assertEqual(response.json()['total'], 4)
+
+    def test_dashboard_probes_models_without_triggering_agent(self):
+        def handler(request):
+            self.assertEqual(request.method, 'GET')
+            self.assertEqual(str(request.url), 'http://hermes.test/v1/models')
+            self.assertEqual(request.headers['Authorization'], 'Bearer test-hermes-secret')
+            return httpx.Response(200, json={'data': [{'id': 'hermes-agent'}]})
+        with self.transport(handler):
+            result = self.client.get('/api/status', headers=self.headers)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['hermes']['status'], 'connected')
+        self.assertGreaterEqual(result.json()['hermes']['latency_ms'], 0)
+        self.assertEqual(result.json()['messages'], 0)
+        self.assertEqual(result.headers['Cache-Control'], 'no-store')
+        self.assertNotIn('test-hermes-secret', result.text)
+
+    def test_dashboard_never_reports_bad_or_unreachable_endpoint_connected(self):
+        cases = [(401, {}, 'unauthorized'), (503, {}, 'unavailable'),
+                 (200, {'page': 'html fallback'}, 'unavailable'), (200, [], 'unavailable')]
+        for code, payload, expected in cases:
+            with self.transport(lambda request: httpx.Response(code, json=payload)):
+                data = self.client.get('/api/status', headers=self.headers).json()
+            self.assertEqual(data['hermes']['status'], expected)
+        with patch.dict(os.environ, {'HERMES_API_KEY': ''}):
+            self.assertEqual(self.client.get('/api/status', headers=self.headers).json()['hermes']['status'], 'not_configured')
+
+    def test_history_pagination_and_reopening_conversations(self):
+        def handler(request):
+            return httpx.Response(200, json={'choices': [{'finish_reason': 'stop', 'message': {'content': 'OK'}}]})
+        old_id = self.conversation_id
+        with self.transport(handler):
+            self.post('Première discussion')
+            self.conversation_id = str(uuid4())
+            self.post('Seconde discussion')
+        page = self.client.get('/api/conversations?limit=1', headers=self.headers).json()
+        self.assertTrue(page['has_more'])
+        self.assertEqual(page['conversations'][0]['id'], self.conversation_id)
+        next_page = self.client.get('/api/conversations?limit=1&offset=1', headers=self.headers).json()
+        self.assertFalse(next_page['has_more'])
+        self.assertEqual(next_page['conversations'][0]['id'], old_id)
+        reopened = self.client.get('/api/conversations/'+old_id, headers=self.headers).json()
+        self.assertEqual(reopened['messages'][0]['content'], 'Première discussion')
+        self.assertEqual(self.client.get('/api/conversations?offset=-1', headers=self.headers).status_code, 422)
 
     def test_upstream_error_or_cancelled_turn_does_not_save_messages(self):
         for status, payload in [(500, {"secret": "must-not-leak"}),

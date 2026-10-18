@@ -2,11 +2,12 @@ import asyncio
 import os
 import secrets
 import sqlite3
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager, closing
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -78,9 +79,35 @@ def health():
     return {"status": "ok", "hermes_configured": bool(os.getenv("HERMES_API_KEY")), "messages": count}
 
 
+@app.get("/api/status", dependencies=[Depends(authenticate)])
+async def status(request: Request):
+    probe = await hermes.status()
+    with database() as db:
+        count, conversations = db.execute("SELECT COUNT(*), COUNT(DISTINCT conversation_id) FROM messages").fetchone()
+        last_message = db.execute("SELECT MAX(created_at) FROM messages").fetchone()[0]
+    return {"hermes": probe, "messages": count, "conversations": conversations,
+            "last_message_at": last_message, "busy": request.app.state.chat_lock.locked(),
+            "checked_at": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/api/conversations", dependencies=[Depends(authenticate)])
+def conversations(offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=100)):
+    with database() as db:
+        rows = db.execute("""SELECT conversation_id, MIN(id) AS first_id,
+            MAX(id) AS latest_id, MAX(created_at), COUNT(*) FROM messages
+            GROUP BY conversation_id ORDER BY latest_id DESC LIMIT ? OFFSET ?""", (limit + 1, offset)).fetchall()
+        items = []
+        for conversation_id, first_id, _, updated_at, count in rows[:limit]:
+            title = db.execute("SELECT content FROM messages WHERE id = ?", (first_id,)).fetchone()[0]
+            items.append({"id": conversation_id, "title": title[:100], "updated_at": updated_at, "messages": count})
+    return {"conversations": items, "has_more": len(rows) > limit}
+
+
 @app.get("/api/conversations/{conversation_id}", dependencies=[Depends(authenticate)])
 def conversation(conversation_id: UUID):
-    return {"messages": history(conversation_id)}
+    with database() as db:
+        total = db.execute("SELECT COUNT(*) FROM messages WHERE conversation_id = ?", (str(conversation_id),)).fetchone()[0]
+    return {"messages": history(conversation_id), "total": total}
 
 
 @app.post("/api/chat", dependencies=[Depends(authenticate)])

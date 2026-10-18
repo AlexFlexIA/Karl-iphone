@@ -14,3 +14,71 @@ h1,h2,p{overflow-wrap:anywhere}h1{font-weight:600;letter-spacing:-.035em;line-he
 
 @media(max-width:760px){.authenticated .masthead{padding:1rem;margin-bottom:1rem;gap:.5rem}.authenticated .header-actions{gap:2px}.authenticated .connection-chip{font-size:.6rem;padding:6px 8px;max-width:122px}.authenticated .icon-button{width:36px;min-height:44px;padding:8px;border:0}.authenticated .identity p{font-size:.58rem}.authenticated .wordmark{font-size:60px}}
 @media(max-width:370px){.authenticated .masthead{padding:.9rem .7rem}.authenticated .connection-chip{max-width:103px;font-size:.58rem}.authenticated .wordmark{font-size:54px}}
+
+.dashboard-tabs{display:flex;gap:1.4rem;border-bottom:1px solid var(--line);padding-top:.8rem}
+.dashboard-tabs button{padding:.8rem 0;background:transparent;color:var(--muted);font-size:.78rem;border-bottom:2px solid transparent}
+.dashboard-tabs button.selected{color:var(--cyan);border-color:var(--cyan)}
+.cron-dashboard .section-heading h1{font:italic 800 clamp(2.7rem,5vw,4.2rem)/1 Barlow,sans-serif;letter-spacing:-.02em;margin-bottom:.7rem}
+.source-caption{display:flex;align-items:center;gap:.5rem;color:var(--muted);font-size:.65rem;line-height:1.7;margin:-.3rem 0 1.5rem;flex-wrap:wrap}
+.source-caption>span:last-child{margin-left:auto;border:1px solid var(--line);padding:3px 8px}
+.source-dot{width:6px;height:6px;background:var(--cyan);transform:rotate(45deg)}
+.source-dot.old{background:var(--muted)}
+.source-warning,.attention-panel{background:var(--error-bg);color:var(--error-ink);padding:1.2rem 1.4rem;border:1px solid #804750;font-size:.75rem;line-height:1.8}
+.source-warning{margin:0 0 1.5rem}
+.cron-totals{display:flex;flex-wrap:wrap;gap:1.5rem;padding:.3rem 0 1.5rem;font-size:.7rem;color:var(--muted)}
+.cron-totals strong{font-size:1rem;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.attention-panel{margin:0 0 2rem}
+.attention-panel h2{margin:0 0 .8rem;display:flex;gap:.8rem;align-items:center;font-size:.85rem}
+.attention-panel h2 span{font-size:.7rem;border:1px solid #aa7179;padding:0 7px}
+.attention-panel strong{font-size:.8rem;font-weight:600}
+.attention-panel p{margin:.5rem 0 0;font-size:.72rem}
+.today-columns{display:grid;grid-template-columns:1.5fr 1fr;gap:3rem}
+.today-columns h2,.house-followup h2{font-size:1rem;margin:0 0 .5rem}
+.section-note{font-size:.65rem;color:var(--muted);line-height:1.9;margin:0 0 1rem}
+.agenda ol{list-style:none;padding:0;margin:1rem 0 0}
+.agenda li{display:grid;grid-template-columns:5.6rem 1fr;gap:1rem;border-top:1px solid var(--line);padding:1rem 0}
+.agenda time{font-size:.78rem;color:var(--cyan);line-height:1.8;font-variant-numeric:tabular-nums}
+.agenda li strong{display:block;font-weight:400;font-size:.78rem;line-height:1.8}
+.agenda li span{display:block;color:var(--muted);font-size:.62rem;margin-top:.4rem;line-height:1.8}
+.briefs article{padding:1rem 0;border-top:1px solid var(--line)}
+.briefs h3{font-size:.78rem;font-weight:400;line-height:1.8;margin:0 0 .5rem}
+.briefs article p{color:var(--muted);font-size:.65rem;margin:.5rem 0 0;line-height:1.8}
+.job-result{display:inline-block;color:var(--cyan);font-size:.65rem;line-height:1.7}
+.job-result.failed{color:var(--error-ink)}
+.home-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:1.5rem;align-items:stretch}
+.weather-panel{background:var(--blue);padding:1.8rem;color:#fff;clip-path:polygon(0 0,100% 0,100% calc(100% - 22px),calc(100% - 22px) 100%,0 100%)}
+.weather-heading{display:flex;align-items:baseline;justify-content:space-between;gap:.7rem;flex-wrap:wrap}
+.weather-heading h2{margin:0;font-size:.85rem}
+.weather-heading>span{color:#e4edff;font-size:.62rem}
+.temperature{font:italic 800 6rem/1.1 Barlow,sans-serif;letter-spacing:-.02em;margin:1.1rem 0 .3rem;font-variant-numeric:tabular-nums}
+.temperature>span{font-size:2.4rem;margin-left:.3rem}
+.weather-panel>p{font-size:.65rem;line-height:1.8;color:#e4edff;margin:.3rem 0 1rem}
+.weather-measures{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:1.5rem 0 0;padding-top:1rem;border-top:1px solid #b2cbff77}
+.weather-measures dt{font-size:.6rem;color:#e4edff;line-height:1.8}
+.weather-measures dd{margin:.4rem 0 0;font-size:1rem;font-variant-numeric:tabular-nums}
+.weather-measures small{font-size:.6rem}
+.weather-panel>p.reading-caution{margin-top:1rem;margin-bottom:0}
+.tempo-panel{padding:1.6rem;border:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.tempo-panel h2{margin:0;font-size:.85rem}
+.tempo-panel>strong{display:block;font:italic 800 3.6rem/1.2 Barlow,sans-serif;text-transform:uppercase;color:var(--cyan);margin:.9rem 0 .7rem}
+.tempo-blanc>strong{color:var(--ink)}
+.tempo-rouge>strong{color:var(--error-ink)}
+.tempo-panel p{font-size:.75rem;line-height:1.8;margin:0 0 .5rem;color:var(--muted)}
+.tempo-panel>span{font-size:.6rem;color:var(--muted);line-height:1.8}
+.house-followup{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;margin-top:2rem}
+.house-followup>section{padding-top:1.2rem;border-top:1px solid var(--line)}
+.house-followup p{font-size:.75rem;line-height:1.9;margin:.65rem 0;color:var(--muted)}
+.house-followup>section>span:not(.job-result){font-size:.65rem;color:var(--muted);line-height:1.8}
+.house-followup .section-note{font-size:.65rem;margin-top:1rem}
+.cron-footer{font-size:.62rem;color:var(--muted);line-height:1.9;border-top:1px solid var(--line);padding-top:1.3rem;margin:2rem 0 1rem}
+.cron-empty{padding:2rem 0;color:var(--muted);font-size:.8rem;line-height:1.9}
+@media(max-width:760px){
+  .dashboard-tabs{gap:1.3rem}.dashboard-tabs button{font-size:.7rem}
+  .cron-dashboard .section-heading h1{font-size:2.7rem;max-width:9ch}
+  .today-columns,.home-grid,.house-followup{grid-template-columns:1fr;gap:1.5rem}
+  .cron-totals{gap:1rem}.attention-panel{padding:1rem}
+  .agenda li{grid-template-columns:4.5rem 1fr;gap:.8rem}
+  .weather-panel{padding:1.3rem}.temperature{font-size:5.5rem}
+  .tempo-panel{padding:1.3rem}.tempo-panel>strong{font-size:3rem;margin:.7rem 0 .5rem}
+  .house-followup{margin-top:1.5rem}.source-caption{font-size:.6rem}
+}

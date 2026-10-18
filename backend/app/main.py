@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import hermes
+from .crons import CronSource
 
 
 def db_path() -> Path:
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
         db.execute("CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id, id)")
     app.state.chat_lock = asyncio.Lock()
+    app.state.crons = CronSource()
     yield
 
 
@@ -101,6 +103,11 @@ def conversations(offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=
             title = db.execute("SELECT content FROM messages WHERE id = ?", (first_id,)).fetchone()[0]
             items.append({"id": conversation_id, "title": title[:100], "updated_at": updated_at, "messages": count})
     return {"conversations": items, "has_more": len(rows) > limit}
+
+
+@app.get("/api/dashboard", dependencies=[Depends(authenticate)])
+async def dashboard(request: Request):
+    return await request.app.state.crons.read()
 
 
 @app.get("/api/conversations/{conversation_id}", dependencies=[Depends(authenticate)])

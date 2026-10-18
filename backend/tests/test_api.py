@@ -46,6 +46,7 @@ class ApiTests(unittest.TestCase):
         for method, path, body in [
             ("GET", "/api/health", None),
             ("GET", "/api/status", None),
+            ("GET", "/api/dashboard", None),
             ("GET", "/api/conversations", None),
             ("GET", f"/api/conversations/{self.conversation_id}", None),
             ("POST", "/api/chat", {"conversation_id": self.conversation_id, "message": "Hi"}),

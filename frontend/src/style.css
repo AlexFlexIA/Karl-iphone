@@ -82,3 +82,127 @@ h1,h2,p{overflow-wrap:anywhere}h1{font-weight:600;letter-spacing:-.035em;line-he
   .tempo-panel{padding:1.3rem}.tempo-panel>strong{font-size:3rem;margin:.7rem 0 .5rem}
   .house-followup{margin-top:1.5rem}.source-caption{font-size:.6rem}
 }
+
+/* The family space extends KARL's cobalt lettering and angular controls. */
+select{font:inherit;font-size:16px;width:100%;min-width:0;background:var(--surface);color:var(--ink);border:1px solid #50709a;border-radius:3px;padding:.85rem;min-height:48px}
+select:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.family-nav{display:flex;gap:.5rem;border-block:1px solid var(--line);padding:.7rem 0}
+.family-nav button{display:flex;align-items:center;gap:.6rem;justify-content:center;background:transparent;color:var(--muted);font-size:.8rem;padding:.8rem 1.2rem}
+.family-nav button.selected{background:var(--cyan);color:#06152a;font-weight:600;clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%)}
+.member-button{background:transparent;display:flex;align-items:center;gap:.5rem;padding:.4rem;font-size:.75rem;max-width:150px;overflow-wrap:anywhere}
+.family-heading{margin:1.3rem 0 2rem}
+.family-heading h1{font:italic 800 clamp(2.7rem,5vw,4.3rem)/1.04 Barlow,sans-serif;letter-spacing:-.02em;margin:0 0 1rem;max-width:18ch}
+.family-heading p{font-size:.78rem;line-height:1.9;color:var(--muted);margin:0}
+.family-sync{display:flex;justify-content:flex-end;align-items:center;gap:.6rem;color:var(--muted);font-size:.6rem;margin:.5rem 0}
+.family-sync button{padding:.5rem;background:transparent;display:grid;place-items:center}
+.family-sync .icon{width:16px;height:16px}
+.family-day-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:3rem}
+.family-day-layout h2{font-size:1rem;margin:0 0 1.4rem}
+.family-event{display:grid;grid-template-columns:4.4rem 1fr;gap:1rem;padding:1.2rem 0;border-top:1px solid var(--line)}
+.event-time{display:grid;align-content:start;gap:.5rem;font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--cyan)}
+.event-time>span{color:var(--muted);font-size:.65rem}
+.event-body h3{font-size:.9rem;font-weight:600;line-height:1.7;margin:0 0 .7rem;overflow-wrap:anywhere}
+.event-body p{display:flex;gap:.5rem;align-items:center;color:var(--muted);font-size:.7rem;line-height:1.8;margin:.6rem 0}
+.event-body p .icon{width:16px;height:16px}
+.event-people{display:flex;gap:.5rem;flex-wrap:wrap;font-size:.65rem;line-height:1.8}
+.event-people>span{display:inline-flex;align-items:center;gap:5px}
+.event-people>span::before{content:'';width:5px;height:5px;background:currentColor;transform:rotate(45deg)}
+.person-color-0{color:#91dfff}.person-color-1{color:#dac1ff}.person-color-2{color:#a4e7c7}.person-color-3{color:#ffd2a6}
+.family-empty{color:var(--muted);font-size:.8rem;line-height:1.9;padding:1rem 0 2rem}
+.family-empty p{margin:0 0 1.4rem}
+.text-button{display:inline-flex;align-items:center;gap:.7rem;background:transparent;color:var(--cyan);font-size:.7rem;line-height:1.8;padding:.65rem 0;min-height:44px;text-align:left;text-decoration:none}
+.text-button:hover:not(:disabled){color:#a0e7ff;background:transparent}
+.text-button .icon{width:16px;height:16px}
+.shopping-shortcut{display:flex;align-items:center;gap:1rem;background:var(--blue);width:100%;padding:1.5rem;text-align:left;margin-bottom:2.5rem;clip-path:polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%)}
+.shopping-shortcut:hover:not(:disabled){background:#304fff}
+.shopping-shortcut>span{flex:1}
+.shopping-shortcut strong{font-size:1.2rem;font-weight:600;display:block}
+.shopping-shortcut small{display:block;font-size:.65rem;color:#e4edff;line-height:1.8;margin-top:.5rem}
+.family-form{display:flex;flex-direction:column;gap:.8rem;background:var(--surface);border:1px solid var(--line);padding:1.5rem;margin:0 0 2rem;max-width:750px}
+.family-form h2{margin:0 0 .5rem;font-size:1rem}
+.family-form label,.invitation-result>label{display:block;font-size:.72rem;line-height:1.8;margin-bottom:.3rem}
+.family-form .primary-button{gap:1rem;align-self:flex-start;min-width:190px;margin-top:.5rem}
+.form-pair{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.family-form input,.family-form select{background:var(--bg)}
+.form-actions{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.form-actions .primary-button{margin:0}
+.family-form fieldset{margin:.5rem 0;padding:.8rem 0;border:0;border-top:1px solid var(--line)}
+.family-form legend{font-size:.72rem;padding:0 .6rem 0 0}
+.family-form label.attendee-option{display:inline-flex;align-items:center;gap:.6rem;margin:0 1.1rem 0 0;min-height:44px;cursor:pointer}
+.attendee-option input{width:20px;height:20px;min-width:20px;padding:0;accent-color:var(--cyan)}
+.family-task,.shopping-row{display:flex;gap:.5rem;align-items:center;border-top:1px solid var(--line);min-width:0}
+.family-task>label,.shopping-row>label{display:flex;align-items:center;gap:1rem;flex:1;padding:1rem 0;min-width:0;cursor:pointer;min-height:70px}
+.family-task input,.shopping-row input{accent-color:var(--cyan);width:22px;min-width:22px;height:22px;padding:0;margin:0}
+.family-task label>span,.shopping-row label>span{min-width:0}
+.family-task strong,.shopping-row strong{display:block;font-size:.8rem;font-weight:400;line-height:1.8;overflow-wrap:anywhere}
+.family-task small,.shopping-row small{display:block;font-size:.62rem;color:var(--muted);line-height:1.8;margin-top:.35rem;overflow-wrap:anywhere}
+.is-done strong{text-decoration:line-through;color:var(--muted)}
+.family-task .icon-button,.shopping-row .icon-button{border:0;background:transparent;flex-shrink:0}
+.shopping-group{margin:2rem 0}
+.shopping-group h2{display:flex;justify-content:space-between;font-size:.9rem;margin:0 0 1rem}
+.shopping-group h2>span{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.planning-controls{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1rem}
+.week-switch{display:flex;align-items:center;gap:.8rem;font-size:.7rem}
+.week-switch .icon-button{border:0;background:transparent}
+.person-filter{max-width:280px;margin-bottom:1.5rem}
+.planning-day{margin:1.4rem 0 2rem}
+.planning-day h2{font-size:.85rem;margin:0 0 1rem}
+.row-actions{display:flex;gap:1rem;margin-top:.5rem;flex-wrap:wrap}
+.row-actions button{font-size:.65rem;min-height:44px;padding:.5rem 0;color:var(--muted);background:transparent}
+.row-actions button:hover:not(:disabled){color:var(--cyan);background:transparent}
+.calendar-export{margin-top:1rem}
+.family-footer{margin:2.5rem 0 0;border-top:1px solid var(--line);padding:1.2rem 0;font-size:.62rem;color:var(--muted);line-height:1.9;max-width:85ch}
+.family-notice{padding:.8rem 1rem;background:var(--raised);font-size:.75rem;color:var(--cyan);line-height:1.8}
+.undo-bar{display:flex;align-items:center;flex-wrap:wrap;gap:.8rem;padding:.7rem 1rem;background:var(--raised);font-size:.7rem;line-height:1.8}
+.undo-bar>span{flex:1;overflow-wrap:anywhere;min-width:120px}
+.undo-bar button{background:transparent;color:var(--cyan);font-size:.7rem;padding:.5rem}
+.member-list{margin:0 0 2rem}
+.member-list>div{display:flex;align-items:center;gap:1rem;border-top:1px solid var(--line);padding:1.2rem 0;flex-wrap:wrap}
+.member-avatar{width:40px;height:40px;background:var(--raised);display:grid;place-items:center;font-size:1rem;flex-shrink:0}
+.member-list>div>div{flex:1;min-width:140px}
+.member-list strong{display:block;font-size:.85rem;line-height:1.8}
+.member-list div>div>span{display:block;font-size:.63rem;color:var(--muted);line-height:1.8;overflow-wrap:anywhere}
+.family-settings{margin:0 0 2rem;border-top:1px solid var(--line)}
+.family-settings>summary{font-size:.8rem;min-height:44px;padding:1rem 0;cursor:pointer}
+.family-settings .family-form{margin-top:1rem}
+.invitation-result{padding:1.2rem;background:var(--raised);margin-bottom:1rem}
+.invitation-result p{font-size:.65rem;line-height:1.9;color:var(--muted)}
+.invitation-result input{font-size:14px}
+.google-login{text-decoration:none;margin-top:2rem;gap:1rem}
+.family-welcome .invite-explanation{font-size:.8rem;color:var(--cyan);line-height:1.9;margin:1.5rem 0}
+.family-welcome h2{font-size:1.1rem;margin:1.5rem 0 .5rem}
+.family-welcome>.primary-button{margin-top:1.5rem}
+.family-welcome>.text-button{margin-top:1.5rem}
+@media(max-width:760px){
+  .family-nav{justify-content:space-between;gap:0}
+  .family-nav button{flex-direction:column;gap:.4rem;padding:.65rem .5rem;font-size:.65rem;flex:1}
+  .family-nav .icon{width:19px;height:19px}
+  .family-day-layout{grid-template-columns:1fr;gap:2rem}
+  .family-heading{margin-top:1rem}.family-heading h1{font-size:2.8rem;max-width:13ch}
+  .family-heading p{font-size:.72rem}
+  .family-event{grid-template-columns:3.6rem 1fr;gap:.7rem}
+  .family-form{padding:1rem}.family-form .primary-button{width:100%}
+  .shopping-form .form-pair{grid-template-columns:.8fr 1.2fr;gap:.7rem}
+  .event-form .form-pair{grid-template-columns:1fr;gap:.8rem}
+  .event-form input[type=datetime-local]{width:100%;min-width:0;display:block}
+  .family-task>label,.shopping-row>label{gap:.75rem}
+  .family-task strong,.shopping-row strong{font-size:.75rem}
+  .planning-controls{align-items:flex-start;flex-wrap:wrap}.week-switch{width:100%;justify-content:space-between}
+  .family-shell .member-button{font-size:.65rem;max-width:90px}.member-button .icon{width:16px;height:16px}
+  .family-shell.authenticated .header-actions{gap:0}
+  .family-shell .identity p{font-size:.57rem}
+  .family-shell.signed-out .masthead{align-items:center;gap:.5rem}
+  .family-shell.signed-out .masthead>.secondary-button{font-size:.6rem;padding:.6rem}
+  .day-side .shopping-shortcut{margin-bottom:2rem}.family-day-layout h2{font-size:.9rem}
+}
+@media(max-width:370px){
+  .family-shell.authenticated .wordmark{font-size:48px}
+  .family-shell .member-button{max-width:77px;font-size:.6rem;gap:.3rem}
+  .family-shell.authenticated .icon-button{width:32px;padding:6px}
+  .form-pair{grid-template-columns:1fr;gap:.8rem}
+  .shopping-form .form-pair{grid-template-columns:1fr}
+  .family-nav button{font-size:.6rem;padding-inline:.3rem}
+}
+.preview-banner{padding:.7rem 0;margin:0;font-size:.65rem;color:var(--muted);line-height:1.8;border-top:1px solid var(--line)}
+.primary-button:focus-visible,.send-button:focus-visible,.workspace-bar nav button.active:focus-visible,.family-nav button.selected:focus-visible{outline:2px solid var(--bg);outline-offset:-5px}
+.shopping-shortcut:focus-visible{outline:2px solid var(--ink);outline-offset:-5px}

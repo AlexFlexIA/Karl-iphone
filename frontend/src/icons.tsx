@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react'
 const shapes: Record<string, ReactNode> = {
+  home: <><path d="m3 10 9-7 9 7v11H3Z" /><path d="M9 21v-8h6v8" /></>,
+  people: <><circle cx="9" cy="7" r="3" /><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-2-4" /></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3m-10 3h3" /></>,
+  cart: <><path d="M2 3h3l3 12h11l3-8H6" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /></>,
+  car: <><path d="m5 4-3 8v7h3v-3h14v3h3v-7l-3-8ZM2 12h20M6 13v1m12-1v1" /></>,
+  back: <path d="m15 5-7 7 7 7" />,
+  close: <path d="m6 6 12 12M6 18 18 6" />,
   chat: <path d="M20 11a8 8 0 0 1-8 8H7l-5 3V11a9 9 0 0 1 18 0Z" />,
   history: <><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7" /><path d="M12 7v5l3 2" /></>,
   dashboard: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>,

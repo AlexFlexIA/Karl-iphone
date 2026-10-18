@@ -34,7 +34,7 @@ function Reply({ text }: { text: string }) {
   })}</div>
 }
 
-export default function App() {
+export default function App({ onFamily }: { onFamily?: () => void }) {
   const [token, setToken] = useState('')
   const [keyInput, setKeyInput] = useState('')
   const [view, setView] = useState<View>('chat')
@@ -168,6 +168,13 @@ export default function App() {
   }
   function newConversation() { if (!busy && !loading) openConversation(crypto.randomUUID()) }
   function changeView(next: View) { voice.stopMedia(); setView(next); setError('') }
+  async function openFamily() {
+    if (token) {
+      try { await api('family/bootstrap', { method: 'POST' }) }
+      catch (e) { setError(e instanceof Error ? e.message : 'Espace famille indisponible.'); return }
+    }
+    voice.stopMedia(); onFamily?.()
+  }
   function logout() { voice.stopMedia(); setToken(''); setMessages([]); setConversations([]); setOverview(null); setInput(''); setError(''); setView('chat'); setLoading(false) }
   async function copyMessage(text: string, id: number) {
     try { await navigator.clipboard.writeText(text); setCopied(id) }
@@ -180,8 +187,8 @@ export default function App() {
 
   return <div className={`app-shell ${token ? 'authenticated' : 'signed-out'}`}>
     <header className="masthead"><div className="identity"><a className="wordmark" href="#" onClick={event => { event.preventDefault(); if (token) changeView('chat') }} aria-label="KARL, accueil">KARL<span>·</span></a><p>Votre assistant personnel</p></div>
-      {token ? <div className="header-actions"><span className={`connection-chip ${connected && online ? 'is-connected' : ''}`}><span />{connectionLabel}</span><button className="icon-button" onClick={logout} disabled={busy} aria-label="Se déconnecter"><Icon name="logout" /></button></div>
-        : <span className="personal-mark">Texte / voix</span>}
+      {token ? <div className="header-actions">{onFamily && <button className="icon-button" onClick={() => void openFamily()} aria-label="Ouvrir la famille" disabled={busy}><Icon name="people" /></button>}<span className={`connection-chip ${connected && online ? 'is-connected' : ''}`}><span />{connectionLabel}</span><button className="icon-button" onClick={logout} disabled={busy} aria-label="Se déconnecter"><Icon name="logout" /></button></div>
+        : <button className="secondary-button" onClick={() => onFamily?.()}>Espace famille</button>}
     </header>
     {!online && <p className="offline-banner" role="status"><Icon name="offline" />Vous êtes hors ligne. Reconnectez-vous pour échanger avec Hermes.</p>}
     {!token ? <main className="login-layout"><div className="login-art" aria-hidden="true"><span>K<span className="art-slash">/</span></span><div className="art-caption">L’esprit libre.<br />Les idées en mouvement.</div></div><section className="welcome"><h1>Une idée ?<br />On commence.</h1><p>Ouvrez votre espace pour parler à Hermes, retrouver vos échanges et faire avancer vos idées.</p><form onSubmit={connect}><label htmlFor="access-key">Votre clé d’accès KARL</label><input id="access-key" type="password" value={keyInput} onChange={event => setKeyInput(event.target.value)} placeholder="Coller votre clé" required autoComplete="current-password" /><button className="primary-button" disabled={busy || !keyInput.trim() || !online}>{busy ? 'Connexion…' : 'Ouvrir mon espace'}<Icon name="chevron" /></button></form><p className="privacy-note">La clé reste en mémoire dans cet onglet. Elle n’est pas enregistrée sur cet appareil.</p></section></main>

@@ -1,9 +1,8 @@
 import asyncio
 import os
 import secrets
-import sqlite3
 from datetime import datetime, timezone
-from contextlib import asynccontextmanager, closing
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID
 
@@ -14,14 +13,8 @@ from pydantic import BaseModel, Field
 
 from . import hermes
 from .crons import CronSource
-
-
-def db_path() -> Path:
-    return Path(os.getenv("KARL_DB_PATH", "karl.db"))
-
-
-def database():
-    return closing(sqlite3.connect(db_path(), timeout=5))
+from . import family_auth, family
+from .store import db_path, database
 
 
 @asynccontextmanager
@@ -35,6 +28,7 @@ async def lifespan(app: FastAPI):
         db.execute("CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id, id)")
     app.state.chat_lock = asyncio.Lock()
     app.state.crons = CronSource()
+    family_auth.initialize()
     yield
 
 
@@ -50,6 +44,13 @@ def authenticate(credentials: HTTPAuthorizationCredentials | None = Depends(secu
 
 
 app = FastAPI(title="KARL", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.include_router(family_auth.router)
+app.include_router(family.router)
+
+
+@app.post("/api/family/bootstrap", dependencies=[Depends(authenticate)])
+def family_owner(request: Request, response: family_auth.Response):
+    return family_auth.owner_login(request, response)
 
 
 @app.middleware("http")
@@ -138,6 +139,6 @@ async def chat(body: ChatRequest, request: Request):
     return {"reply": reply}
 
 
-dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+dist = Path(os.getenv("KARL_FRONTEND_DIST", str(Path(__file__).resolve().parents[2] / "frontend" / "dist")))
 if dist.is_dir():
     app.mount("/", StaticFiles(directory=dist, html=True), name="pwa")

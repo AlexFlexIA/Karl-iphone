@@ -45,6 +45,10 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
       <ul className="rows">{(ctx.data?.members ?? []).map(member => <li className={`row ${member.active ? '' : 'is-inactive'}`} key={member.id}>
         <span className="row-main"><Badge member={member} size={32} /><span className="row-text"><span className="row-title">{member.name}{member.id === user.id ? ' (toi)' : ''}</span>
           <span className="row-meta">{member.role === 'admin' ? 'Administrateur' : 'Membre'}{!member.active && <strong>Accès désactivé</strong>}{member.email && <span>{member.email}</span>}</span></span></span>
+        {user.role === 'admin' && member.active && <button className="btn btn-secondary btn-small" disabled={ctx.disabled}
+          onClick={() => void ctx.run(async () => { await ctx.api('family/members/' + member.id, { method: 'PATCH', body: JSON.stringify({ assistant: !member.assistant }) }) },
+            member.assistant ? `Hermes désactivé pour ${member.name}. Ses conversations sont conservées.` : `Hermes activé pour ${member.name}.`)}>
+          <Icon name="chat" />{member.assistant ? 'Hermes activé' : 'Hermes désactivé'}<span className="sr-only"> pour {member.name}</span></button>}
         {user.role === 'admin' && !member.is_owner && member.id !== user.id && <button className="btn btn-secondary btn-small" disabled={ctx.disabled}
           onClick={() => void ctx.run(async () => { await ctx.api('family/members/' + member.id, { method: 'PATCH', body: JSON.stringify({ active: !member.active }) }) },
             member.active ? `Accès de ${member.name} désactivé sur tous ses appareils.` : `Accès de ${member.name} réactivé. Créez une nouvelle invitation.`)}>

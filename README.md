@@ -49,6 +49,15 @@ Les invitations fonctionnent sans Google. Pour activer la reconnexion Google, cr
 
 Flux serveur avec code d’autorisation, PKCE, état lié au navigateur, nonce, vérification de signature RS256, émetteur, destinataire et expiration du jeton. Seules les adresses invitées et vérifiées sont admises ; association ensuite à l’identifiant Google stable. Scopes `openid email` uniquement ; aucune lecture de Gmail/Agenda et aucun jeton Google conservé. [Documentation Google](https://developers.google.com/identity/openid-connect/openid-connect).
 
+## Hermes pour chaque membre
+
+Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversations, illisibles par les autres, propriétaire compris (404 identique à une conversation inexistante). Suppression possible par le membre ; un administrateur peut couper l’assistant d’un membre sans toucher à ses autres accès.
+
+- Branché sur un **profil Hermes dédié à la famille** (`HERMES_FAMILY_API_URL`, par défaut `http://127.0.0.1:8643/v1`, `HERMES_FAMILY_API_KEY`, `HERMES_FAMILY_MODEL`). Jamais de repli sur le Hermes personnel : sans clé famille, l’onglet affiche « bientôt disponible ». Ce profil doit avoir sa propre mémoire désactivée ou vide et aucun outil terminal/fichiers : KARL fournit le contexte à chaque tour.
+- Contexte envoyé par tour : prénom, date et heure de Paris, prénoms de la famille, agenda du membre sur 14 jours, 20 derniers messages du fil. Rien d’autre de la base.
+- Planning : Hermes peut seulement **proposer** une activité (bloc `karl-event`) ; KARL la valide et l’enregistre uniquement quand le membre touche « Ajouter au planning » (idempotent).
+- Limite `KARL_ASSISTANT_DAILY_LIMIT` messages par membre et par jour (60 par défaut), une réponse à la fois par membre.
+
 ## Assistant personnel et Hermes
 
 La clé KARL personnelle reste distincte des sessions familiales, en mémoire dans l’onglet personnel. Les comptes familiaux, y compris administrateurs, ne donnent pas accès au chat, à l’historique ou aux crons personnels. Aucune commande ou notification envoyée à Telegram par les fonctions familiales.

@@ -180,7 +180,7 @@ class Invite(BaseModel):
 def members(user=Depends(member)):
     with database() as db:
         rows = db.execute("SELECT * FROM family_members ORDER BY is_owner DESC,name COLLATE NOCASE").fetchall()
-    return {"members": [{**user_public(row), "active": bool(row["active"]),
+    return {"members": [{**user_public(row), "active": bool(row["active"]), "assistant": bool(row["assistant"]),
                          **({"email": row["email"]} if user["role"] == "admin" else {})} for row in rows if row["active"] or user["role"] == "admin"]}
 
 
@@ -222,7 +222,8 @@ def accept(body: Accept, request: Request, response: Response):
 
 
 class Access(BaseModel):
-    active: bool
+    active: bool | None = None
+    assistant: bool | None = None
 
 
 @router.patch("/family/members/{member_id}")
@@ -231,6 +232,10 @@ def change_access(member_id: str, body: Access, user=Depends(admin)):
         target = db.execute("SELECT * FROM family_members WHERE id=?", (member_id,)).fetchone()
         if not target:
             raise HTTPException(404, "Membre introuvable.")
+        if body.assistant is not None:
+            db.execute("UPDATE family_members SET assistant=? WHERE id=?", (body.assistant, member_id))
+        if body.active is None:
+            return {"ok": True}
         if target["is_owner"] or target["id"] == user["id"]:
             raise HTTPException(403, "Cet accès ne peut pas être désactivé ici.")
         db.execute("UPDATE family_members SET active=? WHERE id=?", (body.active, member_id))

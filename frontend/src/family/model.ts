@@ -1,5 +1,5 @@
 export type User = { id: string; name: string; role: 'admin' | 'member'; is_owner: boolean; badge: number | null }
-export type Member = User & { active: boolean; email?: string | null }
+export type Member = User & { active: boolean; assistant?: boolean; email?: string | null }
 export type Session = { user: User | null; csrf: string | null; google_enabled: boolean; preview: boolean }
 export type Item = { id: string; name: string; quantity: string; category: string; checked: number; version: number; author: string }
 export type Task = { id: string; title: string; assignee_id: string | null; due_date: string | null; done: number; created_by: string; version: number }
@@ -8,7 +8,7 @@ export type FamilyEvent = {
   attendees: string[]; driver_id: string | null; location: string; recurrence: 'once' | 'weekly'; created_by: string; version: number
 }
 export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; at: Date }
-export type View = 'today' | 'planning' | 'shopping' | 'tasks' | 'me'
+export type View = 'today' | 'planning' | 'shopping' | 'tasks' | 'assistant' | 'me'
 
 export const categories = ['Fruits et légumes', 'Frais', 'Épicerie', 'Maison', 'Autres'] as const
 

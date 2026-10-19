@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../icons'
+import { Assistant } from './Assistant'
 import { Logo } from './Logo'
 import { ApiError, request } from './api'
 import type { Ctx } from './context'
@@ -17,7 +18,7 @@ import './family.css'
 
 type Undo = { path: string; version: number; label: string }
 type InstallPrompt = Event & { prompt: () => Promise<void> }
-const tabs = [['today', 'Aujourd’hui', 'home'], ['planning', 'Planning', 'calendar'], ['shopping', 'Courses', 'cart'], ['tasks', 'Tâches', 'check'], ['me', 'Moi', 'people']] as const
+const tabs = [['today', 'Aujourd’hui', 'home'], ['planning', 'Planning', 'calendar'], ['shopping', 'Courses', 'cart'], ['tasks', 'Tâches', 'check'], ['assistant', 'Hermes', 'chat'], ['me', 'Moi', 'people']] as const
 const authErrors: Record<string, string> = {
   google_unconfigured: 'La connexion Google n’est pas encore activée. Utilisez votre invitation privée.',
   google_denied: 'Connexion Google non terminée. Réessayez.',
@@ -150,7 +151,7 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
     <a className="skip" href="#main">Aller au contenu</a>
     {user && <nav className="tabbar" aria-label="Navigation principale">
       <span className="tabbar-brand" aria-hidden="true"><Logo size={34} /></span>
-      {tabs.map(([id, label, icon]) => <button key={id} className="tab" aria-current={view === id ? 'page' : undefined} onClick={() => go(id)}><Icon name={icon} /><span>{label}</span></button>)}
+      {tabs.map(([id, label, icon]) => <button key={id} className="tab" aria-current={view === id ? 'page' : undefined} onClick={() => go(id)}><Icon name={icon} />{id === 'today' ? <><span className="tab-long">{label}</span><span className="tab-short">Accueil</span></> : <span>{label}</span>}</button>)}
     </nav>}
     <div className="fam-main">
       {user && <div className="family-brand"><Logo size={36} caption="Espace famille" /></div>}
@@ -168,6 +169,7 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
             {view === 'planning' && <Planning ctx={ctx} week={week} setWeek={changeWeek} day={day} setDay={setDay} />}
             {view === 'shopping' && <Shopping ctx={ctx} />}
             {view === 'tasks' && <Tasks ctx={ctx} />}
+            {view === 'assistant' && <Assistant ctx={ctx} />}
             {view === 'me' && <Me ctx={ctx} googleEnabled={!!session?.google_enabled} installPrompt={installPrompt} onPersonal={onPersonal} onSignOut={() => void signOut()}
               onProfile={async () => setSession(await request('auth/session', null))} />}
           </main>}

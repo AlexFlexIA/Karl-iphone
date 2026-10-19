@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from . import hermes
 from .crons import CronSource
-from . import family_auth, family
+from . import assistant, family_auth, family
 from .store import db_path, database
 
 
@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     app.state.chat_lock = asyncio.Lock()
     app.state.crons = CronSource()
     family_auth.initialize()
+    assistant.initialize()
     yield
 
 
@@ -46,6 +47,7 @@ def authenticate(credentials: HTTPAuthorizationCredentials | None = Depends(secu
 app = FastAPI(title="KARL", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(family_auth.router)
 app.include_router(family.router)
+app.include_router(assistant.router)
 
 
 @app.post("/api/family/bootstrap", dependencies=[Depends(authenticate)])

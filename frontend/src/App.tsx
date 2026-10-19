@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Icon } from './icons'
 import { useVoice } from './useVoice'
 import { CronDashboard } from './CronDashboard'
+import { Logo, LogoMark } from './family/Logo'
 import './style.css'
 
 type Message = { role: 'user' | 'assistant'; content: string }
@@ -187,12 +188,12 @@ export default function App({ onFamily }: { onFamily?: () => void }) {
   const filtered = conversations.filter(item => item.title.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')))
 
   return <div className={`app-shell ${token ? 'authenticated' : 'signed-out'}`}>
-    <header className="masthead"><div className="identity"><a className="wordmark" href="#" onClick={event => { event.preventDefault(); if (token) changeView('chat') }} aria-label="KARL, accueil">KARL<span>·</span></a><p>Votre assistant personnel</p></div>
+    <header className="masthead"><div className="identity"><a className="wordmark" href="#" onClick={event => { event.preventDefault(); if (token) changeView('chat') }} aria-label="KARL, accueil"><Logo size={34} caption="Assistant personnel" /></a></div>
       {token ? <div className="header-actions">{onFamily && <button className="icon-button" onClick={() => void openFamily()} aria-label="Ouvrir la famille" disabled={busy}><Icon name="people" /></button>}<span className={`connection-chip ${connected && online ? 'is-connected' : ''}`}><span />{connectionLabel}</span><button className="icon-button" onClick={logout} disabled={busy} aria-label="Se déconnecter"><Icon name="logout" /></button></div>
         : <button className="secondary-button" onClick={() => onFamily?.()}>Espace famille</button>}
     </header>
     {!online && <p className="offline-banner" role="status"><Icon name="offline" />Vous êtes hors ligne. Reconnectez-vous pour échanger avec Hermes.</p>}
-    {!token ? <main className="login-layout"><div className="login-art" aria-hidden="true"><span>K<span className="art-slash">/</span></span><div className="art-caption">L’esprit libre.<br />Les idées en mouvement.</div></div><section className="welcome"><h1>Une idée ?<br />On commence.</h1><p>Ouvrez votre espace pour parler à Hermes, retrouver vos échanges et faire avancer vos idées.</p><form onSubmit={connect}><label htmlFor="access-key">Votre clé d’accès KARL</label><input id="access-key" type="password" value={keyInput} onChange={event => setKeyInput(event.target.value)} placeholder="Coller votre clé" required autoComplete="current-password" /><button className="primary-button" disabled={busy || !keyInput.trim() || !online}>{busy ? 'Connexion…' : 'Ouvrir mon espace'}<Icon name="chevron" /></button></form><p className="privacy-note">La clé reste en mémoire dans cet onglet. Elle n’est pas enregistrée sur cet appareil.</p></section></main>
+    {!token ? <main className="login-layout"><div className="login-art" aria-hidden="true"><LogoMark size={150} /><div className="art-caption">L’esprit libre.<br />Les idées en mouvement.</div></div><section className="welcome"><h1>Une idée ?<br />On commence.</h1><p>Ouvrez votre espace pour parler à Hermes, retrouver vos échanges et faire avancer vos idées.</p><form onSubmit={connect}><label htmlFor="access-key">Votre clé d’accès KARL</label><input id="access-key" type="password" value={keyInput} onChange={event => setKeyInput(event.target.value)} placeholder="Coller votre clé" required autoComplete="current-password" /><button className="primary-button" disabled={busy || !keyInput.trim() || !online}>{busy ? 'Connexion…' : 'Ouvrir mon espace'}<Icon name="chevron" /></button></form><p className="privacy-note">La clé reste en mémoire dans cet onglet. Elle n’est pas enregistrée sur cet appareil.</p></section></main>
       : <>
         <div className="workspace-bar"><nav aria-label="Navigation principale">{([['chat', 'Conversation', 'chat'], ['history', 'Historique', 'history'], ['dashboard', 'Dashboard', 'dashboard']] as const).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => changeView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav><button className="new-conversation" aria-label="Nouvelle discussion" onClick={newConversation} disabled={busy || loading}><Icon name="plus" /><span>Nouvelle discussion</span></button></div>
         <main className="workspace">

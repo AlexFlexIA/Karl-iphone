@@ -6,12 +6,12 @@ import type { Member } from './model'
 // Six slots, each a distinct shape AND a fill that differs in lightness from its
 // neighbours: people stay distinguishable in greyscale and with any colour vision.
 const badges = [
-  { shape: 'circle', fill: '#2458FF', ink: '#FFFFFF', name: 'rond' },
-  { shape: 'square', fill: '#65DEFF', ink: '#061426', name: 'carré' },
-  { shape: 'triangle', fill: '#006C8F', ink: '#FFFFFF', name: 'triangle' },
-  { shape: 'diamond', fill: '#AEBFFF', ink: '#061426', name: 'losange' },
-  { shape: 'hexagon', fill: '#1B3A8A', ink: '#FFFFFF', name: 'hexagone' },
-  { shape: 'pentagon', fill: '#D6F4FF', ink: '#061426', name: 'pentagone' },
+  { shape: 'circle', fill: '#1E429F', ink: '#FFFFFF', name: 'rond' },
+  { shape: 'square', fill: '#E3B026', ink: '#0E2340', name: 'carré' },
+  { shape: 'triangle', fill: '#0F6B6B', ink: '#FFFFFF', name: 'triangle' },
+  { shape: 'diamond', fill: '#BFD3F7', ink: '#0E2340', name: 'losange' },
+  { shape: 'hexagon', fill: '#0E2340', ink: '#FFFFFF', name: 'hexagone' },
+  { shape: 'pentagon', fill: '#F3E3B5', ink: '#0E2340', name: 'pentagone' },
 ] as const
 
 export const badgeOf = (member: Pick<Member, 'badge'> | null | undefined) => badges[(member?.badge ?? 0) % badges.length]

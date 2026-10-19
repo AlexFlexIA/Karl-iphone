@@ -25,7 +25,7 @@ export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boole
     <label htmlFor={id} className={detailed ? '' : 'sr-only'}>Ajouter un article</label>
     <div className="quick-add-line">
       <input id={id} value={name} onChange={event => update(event.target.value)} required maxLength={120} placeholder="Pommes, lait, pain…" autoComplete="off" enterKeyHint="done" />
-      <button className="btn btn-primary" disabled={ctx.disabled || !name.trim()}><Icon name="plus" />Ajouter</button>
+      <button className="btn btn-gold" disabled={ctx.disabled || !name.trim()}><Icon name="plus" />Ajouter</button>
     </div>
     {detailed && <>
       <button type="button" className="btn-quiet" aria-expanded={more} onClick={() => setMore(value => !value)}>{more ? 'Masquer les détails' : 'Préciser la quantité ou le rayon'}</button>

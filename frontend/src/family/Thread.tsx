@@ -31,10 +31,10 @@ export function Thread({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; 
           <span className="thread-meta">
             {event.attendees.length ? event.attendees.map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />) : <Person member={null} />}
           </span>
-          {event.driver_id && <span className="thread-meta"><Icon name="car" />{driver?.name ?? 'Ancien membre'} accompagne</span>}
-          {!event.driver_id && event.attendees.length > 0 && <span className="thread-meta"><Icon name="car" />Accompagnement à organiser</span>}
-          {event.location && <span className="thread-meta"><Icon name="pin" />{event.location}</span>}
-          {event.recurrence === 'weekly' && <span className="thread-meta"><Icon name="refresh" />Chaque semaine</span>}
+          {event.driver_id && <span className="thread-meta"><Icon name="car" /><span>{driver?.name ?? 'Ancien membre'} accompagne</span></span>}
+          {!event.driver_id && event.attendees.length > 0 && <span className="thread-meta"><Icon name="car" /><span>Accompagnement à organiser</span></span>}
+          {event.location && <span className="thread-meta"><Icon name="pin" /><span>{event.location}</span></span>}
+          {event.recurrence === 'weekly' && <span className="thread-meta"><Icon name="refresh" /><span>Chaque semaine</span></span>}
         </span>
       </>
       return <Fragment key={event.id + event.starts_at}>

@@ -59,7 +59,7 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
       </fieldset>
       <div className="compose-row">
         <div className="field"><label htmlFor="task-date">Pour quand ? <span className="optional">facultatif</span></label><input id="task-date" type="date" value={date} onChange={event => setDate(event.target.value)} /></div>
-        <button className="btn btn-primary" disabled={ctx.disabled || !title.trim()}><Icon name="plus" />Ajouter</button>
+        <button className="btn btn-gold" disabled={ctx.disabled || !title.trim()}><Icon name="plus" />Ajouter</button>
       </div>
     </form>
     {!ctx.data ? <Skeleton /> : !open.length && <Empty title="Tout est fait. Bravo !" />}

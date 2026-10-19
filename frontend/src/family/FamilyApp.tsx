@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../icons'
+import { Logo } from './Logo'
 import { ApiError, request } from './api'
 import type { Ctx } from './context'
 import { EventForm } from './EventForm'
@@ -148,11 +149,11 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
   return <div className={`fam ${user ? 'is-signed-in' : ''}`}>
     <a className="skip" href="#main">Aller au contenu</a>
     {user && <nav className="tabbar" aria-label="Navigation principale">
-      <span className="tabbar-brand" aria-hidden="true">KARL</span>
+      <span className="tabbar-brand" aria-hidden="true"><Logo size={34} /></span>
       {tabs.map(([id, label, icon]) => <button key={id} className="tab" aria-current={view === id ? 'page' : undefined} onClick={() => go(id)}><Icon name={icon} /><span>{label}</span></button>)}
     </nav>}
     <div className="fam-main">
-      {user && <div className="family-brand"><strong>KARL</strong><span>Espace famille</span></div>}
+      {user && <div className="family-brand"><Logo size={36} caption="Espace famille" /></div>}
       <div className="banners">
         {session?.preview && <p className="banner banner-info"><Icon name="alert" />Version de test · données séparées de l’espace habituel.</p>}
         {!online && <p className="banner banner-offline" role="status"><Icon name="offline" /><span><strong>Hors ligne.</strong> {data ? `Données de ${timeKey(data.at)}, en lecture seule.` : 'Aucune donnée chargée.'} Les modifications reprendront à la reconnexion ; rien n’est mis en attente.</span></p>}

@@ -60,7 +60,7 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
           <div className="field"><label htmlFor="invite-email">Adresse e-mail</label><input id="invite-email" name="email" type="email" required autoComplete="off" /></div>
         </div>
         <div className="field"><label htmlFor="invite-role">Accès</label><select id="invite-role" name="role"><option value="member">Membre · planning, courses et tâches</option><option value="admin">Administrateur · gère aussi la famille</option></select></div>
-        <button className="btn btn-primary" disabled={ctx.disabled}><Icon name="plus" />Créer le lien d’invitation</button>
+        <button className="btn btn-gold" disabled={ctx.disabled}><Icon name="plus" />Créer le lien d’invitation</button>
       </form>
       {invitation && <div className="invitation">
         <label htmlFor="invitation-link">Lien privé, valable 7 jours, utilisable une fois</label>

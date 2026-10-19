@@ -152,6 +152,7 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
       {tabs.map(([id, label, icon]) => <button key={id} className="tab" aria-current={view === id ? 'page' : undefined} onClick={() => go(id)}><Icon name={icon} /><span>{label}</span></button>)}
     </nav>}
     <div className="fam-main">
+      {user && <div className="family-brand"><strong>KARL</strong><span>Espace famille</span></div>}
       <div className="banners">
         {session?.preview && <p className="banner banner-info"><Icon name="alert" />Version de test · données séparées de l’espace habituel.</p>}
         {!online && <p className="banner banner-offline" role="status"><Icon name="offline" /><span><strong>Hors ligne.</strong> {data ? `Données de ${timeKey(data.at)}, en lecture seule.` : 'Aucune donnée chargée.'} Les modifications reprendront à la reconnexion ; rien n’est mis en attente.</span></p>}

@@ -1,41 +1,26 @@
-/* KARL famille · direction « Carnet ».
-   Tokens first; every component below reads them, so light and dark stay one system.
-   Rules are unlayered and scoped to .fam: they win over the personal space's layered styles. */
-@font-face{font-family:'Atkinson Hyperlegible';src:url('/fonts/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:'Atkinson Hyperlegible';src:url('/fonts/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
-@font-face{font-family:Fraunces;src:url('/fonts/fraunces-latin-600-normal.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
-
+/* KARL famille · cyber blue. Scoped presentation; family behaviour is unchanged. */
+@font-face{font-family:Sora;src:url('/fonts/sora-400.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Sora;src:url('/fonts/sora-600.ttf') format('truetype');font-weight:600 800;font-style:normal;font-display:swap}
+@font-face{font-family:'Barlow Condensed';src:url('/fonts/barlow-condensed-800-italic.ttf') format('truetype');font-weight:800;font-style:italic;font-display:swap}
 .fam{
-  /* Colour roles. Contrast against --paper and --surface: ink ≥ 14:1, muted ≥ 6:1, accent ≥ 6:1, field border ≥ 4.5:1. */
-  --paper:#F7F3EA; --surface:#FFFDF8; --sunken:#EFE9DC; --ink:#1D1B16; --muted:#5E584C;
-  --line:#DCD3C2; --rule:#1D1B16; --field:#7A7262;
-  --accent:#1F4FE0; --accent-hover:#173EB4; --on-accent:#FFFFFF; --accent-soft:#E4EAFD;
-  --danger:#A3261B; --danger-soft:#FBE8E5; --notice-soft:#FFF2CC;
-  /* Type: Atkinson Hyperlegible for reading, Fraunces for the few headings. Sizes in rem follow the user's text-size setting. */
-  --font-body:'Atkinson Hyperlegible',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --font-display:Fraunces,Georgia,'Times New Roman',serif;
-  --text-xs:.875rem; --text-s:.9375rem; --text-m:1.0625rem; --text-l:1.375rem; --text-xl:1.75rem; --text-xxl:2.5rem;
-  /* Space, radius, motion. */
+  --paper:#060D1D; --surface:#0C1930; --sunken:#112442; --ink:#F0F6FF; --muted:#A6B9D5;
+  --line:#263F60; --rule:#355878; --field:#6483A9;
+  --accent:#65DEFF; --accent-hover:#A8EEFF; --on-accent:#061426; --accent-soft:#102E49;
+  --electric:#2458FF; --electric-hover:#1748E5;
+  --danger:#FFA5B4; --danger-soft:#351B30; --notice-soft:#253047;
+  --font-body:Sora,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-display:Sora,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --text-xs:.8125rem; --text-s:.875rem; --text-m:1rem; --text-l:1.25rem; --text-xl:1.75rem; --text-xxl:2.5rem;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
-  --r-s:8px; --r-m:12px; --r-l:20px;
+  --r-s:5px; --r-m:8px; --r-l:16px;
   --tap:48px; --ease:cubic-bezier(.2,.7,.2,1); --fast:140ms; --slow:240ms;
-  --tabbar:64px;
-  color-scheme:light;
-  min-height:100dvh; background:var(--paper); color:var(--ink);
-  font-family:var(--font-body); font-size:var(--text-m); line-height:1.45;
-  -webkit-text-size-adjust:100%; font-synthesis:none;
+  --tabbar:70px;
+  color-scheme:dark;
+  min-height:100dvh;background:var(--paper);color:var(--ink);
+  font-family:var(--font-body);font-size:var(--text-m);line-height:1.55;
+  -webkit-text-size-adjust:100%;font-synthesis:none;
 }
-@media (prefers-color-scheme:dark){
-  .fam{
-    --paper:#15130F; --surface:#1F1C17; --sunken:#2A261F; --ink:#F3EEE3; --muted:#B9B09F;
-    --line:#3B362D; --rule:#F3EEE3; --field:#958C7B;
-    --accent:#8FA8FF; --accent-hover:#ABBEFF; --on-accent:#0E1430; --accent-soft:#232B4A;
-    --danger:#FF9C8F; --danger-soft:#3A1F1B; --notice-soft:#3A3018;
-    color-scheme:dark;
-  }
-  html:has(.fam){background:#15130F}
-}
-html:has(.fam){background:#F7F3EA}
+html:has(.fam){background:#060D1D}
 body{margin:0}
 
 /* Neutralise inherited control styles: every family control is styled explicitly. */
@@ -163,7 +148,7 @@ details.group>summary>span{margin-left:auto}
 .due-late{color:var(--danger);font-weight:700}
 .due-late .icon{width:18px;height:18px}
 
-/* Fil du jour: ruled notebook lines with a written "Maintenant". */
+/* Timeline: the cyan marker identifies the current time. */
 .thread{border-top:2px solid var(--rule)}
 .thread-row{border-bottom:1px solid var(--line)}
 .thread-hit{display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:start;gap:0 var(--s2);width:100%;padding:var(--s4) 0;text-align:left}
@@ -239,8 +224,8 @@ button.thread-hit:hover .thread-title{text-decoration:underline;text-decoration-
 button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .legend{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s5);padding-top:var(--s3);font-size:var(--text-s);color:var(--muted)}
 .legend>span{display:inline-flex;align-items:center;gap:var(--s2)}
-.legend-swatch{display:inline-grid;place-items:center;width:32px;height:20px;border:2px solid var(--ink);border-radius:5px;background:#0B4FA8}
-.legend-drive{border-style:dashed;background:repeating-linear-gradient(135deg,#0B4FA8 0 5px,var(--surface) 5px 11px)}
+.legend-swatch{display:inline-grid;place-items:center;width:32px;height:20px;border:2px solid var(--ink);border-radius:5px;background:#2458FF}
+.legend-drive{border-style:dashed;background:repeating-linear-gradient(135deg,#2458FF 0 5px,var(--surface) 5px 11px)}
 .legend-drive .icon{width:14px;height:14px;background:var(--surface);border-radius:3px;color:var(--ink)}
 .legend-now{display:inline-block;width:0;height:20px;border-left:2px dashed var(--accent)}
 
@@ -315,6 +300,71 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
   .thread-hit{grid-template-columns:56px minmax(0,1fr) auto}
   .quick-add-line .btn{padding:0 var(--s3)}
 }
+/* Cyber blue identity: one angular cobalt heading, quiet surfaces around it. */
+.fam .family-brand{display:flex;align-items:center;gap:12px;margin:0 0 20px;color:var(--ink)}
+.fam .family-brand strong,.fam .tabbar-brand,.fam .wordmark{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;letter-spacing:-.025em}
+.fam .family-brand strong{font-size:2rem;line-height:1}
+.fam .family-brand strong::after{content:'';display:inline-block;width:7px;height:7px;margin:0 0 3px 6px;background:var(--accent)}
+.fam .family-brand span{padding-left:12px;border-left:1px solid var(--rule);font-size:.6875rem;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--muted)}
+.fam .screen-head{position:relative;isolation:isolate;align-items:center;padding:24px;margin:8px 0 28px;background:var(--electric);border-left:3px solid var(--accent);border-radius:0 16px 0 0;gap:20px}
+.fam .screen-head::after{content:'';position:absolute;z-index:-1;right:0;top:0;width:84px;height:100%;background:linear-gradient(125deg,transparent 48%,rgb(101 222 255 / .14) 49% 66%,transparent 67%);pointer-events:none}
+.fam .screen-head h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(2.65rem,7vw,4rem);line-height:1;letter-spacing:-.02em;color:#FFFFFF}
+.fam .screen-head .eyebrow{color:#E4F5FF;font-size:.6875rem;letter-spacing:.14em;margin-bottom:12px}
+.fam .screen-head .lede{color:#FFFFFF;font-size:var(--text-s);margin-top:14px;max-width:48ch}
+.fam .screen-head .btn-primary{background:var(--ink);color:var(--paper);box-shadow:none}
+.fam .screen-head .btn-primary:hover:not(:disabled){background:var(--accent)}
+.fam .section-head{margin-bottom:16px}
+.fam .section-head h2{letter-spacing:-.035em}
+.fam .today-thread,.fam .today-side>section{padding:20px;background:var(--surface);border:1px solid var(--line);border-top:2px solid var(--rule);border-radius:var(--r-m)}
+.fam .today-grid,.fam .today-side{gap:20px}
+.fam .today-thread{border-top-color:var(--accent)}
+.fam .thread{border-top:1px solid var(--line)}
+.fam .thread-now{border-bottom:1px solid var(--accent);font-size:var(--text-s)}
+.fam .thread-title{letter-spacing:-.025em;font-size:1.125rem}
+.fam .hint{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface)}
+.fam .hint>.icon{color:var(--accent)}
+.fam .tabbar{background:#081426;border-color:var(--line);box-shadow:0 -6px 28px rgb(0 0 0 / .2)}
+.fam .tab{font-size:.6875rem;gap:5px}
+.fam .tab[aria-current=page]{color:var(--accent);background:var(--accent-soft)}
+.fam .tab[aria-current=page]::before{box-shadow:0 0 14px rgb(101 222 255 / .35)}
+.fam .tabbar-brand{font-size:3rem;color:var(--ink)}
+.fam .btn-primary{background:var(--electric);color:#FFFFFF;border:1px solid #5B80FF;box-shadow:0 3px 0 #1238A9}
+.fam .btn-primary:hover:not(:disabled){background:var(--electric-hover)}
+.fam .btn-secondary{border:1px solid var(--field);background:var(--surface)}
+.fam .btn-quiet{font-weight:600}
+.fam .compose{padding:20px;background:var(--surface);border:1px solid var(--line);border-top:2px solid var(--accent);border-radius:var(--r-m)}
+.fam .group-title{border-bottom-width:1px;color:var(--accent);letter-spacing:.09em}
+.fam .rows>li{padding-inline:4px}
+.fam .rows>li:hover{background:var(--surface)}
+.fam input:not([type=checkbox]):not([type=radio]),.fam select,.fam textarea{background:#081426;border-width:1px}
+.fam input:focus,.fam select:focus,.fam textarea:focus{border-color:var(--accent)}
+.fam .check{border-width:1px}
+.fam .check:checked{box-shadow:0 0 12px rgb(101 222 255 / .15)}
+.fam .day{background:var(--surface);border:1px solid var(--line)}
+.fam .day[aria-pressed=true]{background:var(--electric);color:#FFFFFF;border-color:var(--accent)}
+.fam .day[aria-pressed=true] .day-name{color:#FFFFFF}
+.fam .seg{border:1px solid var(--field);background:var(--surface)}
+.fam .seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
+.fam .sheet{border:1px solid var(--rule);border-top:2px solid var(--accent)}
+.fam .sheet::backdrop{background:rgb(2 8 22 / .8);backdrop-filter:blur(5px)}
+.fam .sheet-head{border-bottom:1px solid var(--line)}
+.fam .empty-title{font-size:1.125rem;letter-spacing:-.025em}
+.fam .wordmark{font-size:3.5rem;border-color:var(--accent);color:var(--accent)}
+.fam .welcome h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(3.25rem,12vw,5rem);text-transform:uppercase;letter-spacing:-.02em}
+.fam .welcome-action{padding:20px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);border-radius:var(--r-m)}
+@media (min-width:960px){
+  .fam .family-brand{display:none}
+  .fam .tab{font-size:var(--text-s);gap:12px}
+  .fam .tabbar{box-shadow:none}
+  .fam .screen-head{padding:32px}
+}
+@media (max-width:380px){
+  .fam .screen-head{padding:20px 16px}
+  .fam .today-thread,.fam .today-side>section,.fam .compose{padding:16px 12px}
+  .fam .section-head{gap:4px}
+  .fam .tab{font-size:.625rem}
+}
+
 /* Windows high contrast / forced colours: keep structure visible. */
 @media (forced-colors:active){
   .check:checked::before,.chip:has(input:checked)::after{background:CanvasText}

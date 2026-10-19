@@ -49,6 +49,10 @@ Les invitations fonctionnent sans Google. Pour activer la reconnexion Google, cr
 
 Flux serveur avec code d’autorisation, PKCE, état lié au navigateur, nonce, vérification de signature RS256, émetteur, destinataire et expiration du jeton. Seules les adresses invitées et vérifiées sont admises ; association ensuite à l’identifiant Google stable. Scopes `openid email` uniquement ; aucune lecture de Gmail/Agenda et aucun jeton Google conservé. [Documentation Google](https://developers.google.com/identity/openid-connect/openid-connect).
 
+## Tâches clés
+
+Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre la coche, elle passe « à valider » (colonnes `submitted_by`/`submitted_at`, ajoutées automatiquement) au lieu de « fait » ; un administrateur la **valide** (`validated_by`) ou la renvoie **à refaire**, depuis l’Accueil ou l’écran Tâches. Une tâche clé validée ne peut être rouverte que par un administrateur ; un membre ne peut pas créer de tâche clé.
+
 ## Météo de la famille
 
 Carte en tête de l’Accueil, visible par tous les membres : température extérieure de la station Bresser (dernier relevé, signalé s’il a plus de 90 minutes), prévision du jour (ciel, min/max, pluie, vent, matin/après-midi/soir) et couleur Tempo du lendemain avec un conseil d’usage. Station et Tempo viennent de la même projection en lecture seule que le dashboard personnel (`HERMES_CRON_DIR`) ; seuls ces deux relevés sont exposés aux comptes familiaux, jamais les tâches ni les rapports.

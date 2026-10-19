@@ -19,6 +19,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const pending = data?.items.filter(item => !item.checked) ?? []
   const mine = data?.tasks.filter(task => !task.done && task.assignee_id === user.id) ?? []
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
+  const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
   const hour = ctx.now.getHours()
   const greeting = hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour'
   const summary = !data ? 'Lecture de la journée…' : [
@@ -48,6 +49,10 @@ export function Today({ ctx }: { ctx: Ctx }) {
           {data && pending.length > 0 && <p className="muted">{pending.slice(0, 4).map(item => item.name).join(', ')}{pending.length > 4 ? '…' : ''}</p>}
           <QuickAdd ctx={ctx} />
         </section>
+        {toReview.length > 0 && <section aria-labelledby="today-review" className="today-review">
+          <div className="section-head"><h2 id="today-review">À valider</h2><button className="btn-quiet" onClick={() => ctx.go('tasks')}>{plural(toReview.length, 'tâche clé', 'tâches clés')}<Icon name="chevron" /></button></div>
+          <ul className="rows">{toReview.slice(0, 5).map(task => <TaskRow ctx={ctx} task={task} key={task.id} />)}</ul>
+        </section>}
         <section aria-labelledby="today-tasks">
           <div className="section-head"><h2 id="today-tasks">Pour toi</h2><button className="btn-quiet" onClick={() => ctx.go('tasks')}>Toutes les tâches<Icon name="chevron" /></button></div>
           {!data ? <Skeleton lines={2} /> : mine.length ? <ul className="rows">{mine.slice(0, 5).map(task => <TaskRow ctx={ctx} task={task} key={task.id} />)}</ul> : <p className="muted">Rien ne t’est attribué. </p>}

@@ -464,3 +464,13 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .tempo-blanc .tempo-swatch{background:#FFFFFF}
 .tempo-rouge .tempo-swatch{background:#C0262D}
 .tempo-rouge .tempo-color{color:var(--danger,#B42318)}
+
+/* Key tasks: reported done by a member, validated by a parent */
+.tag-key{background:var(--gold-soft);color:var(--ink);border-color:var(--gold)}
+.tag-key .icon{width:14px;height:14px}
+.row.is-waiting .row-title{font-weight:700}
+.review-actions{display:flex;flex-wrap:wrap;gap:var(--s2);flex:1 0 100%;order:3;padding:0 0 var(--s3) calc(28px + var(--s3))}
+.key-toggle{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3);border:1px dashed var(--gold);border-radius:var(--r-m);background:var(--gold-soft);cursor:pointer}
+.key-toggle>span{display:flex;flex-direction:column;gap:2px}
+.key-toggle strong{display:flex;align-items:center;gap:var(--s1)}
+.key-toggle .icon{width:18px;height:18px}

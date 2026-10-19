@@ -198,6 +198,37 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 2, 'deleted': True}).status_code, 403)
         self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'][0]['done'], 1)
 
+    def test_key_task_reported_done_by_a_member_waits_for_a_parent(self):
+        parent_cookie, parent_csrf = self.client.cookies.get('karl_family'), self.session['csrf']
+        task_id = self.client.post('/api/family/tasks', headers=self.headers, json={'title': 'Ranger la chambre', 'key_task': True}).json()['id']
+        task = lambda: next(row for row in self.client.get('/api/family/tasks').json()['tasks'] if row['id'] == task_id)
+        teen = self.accept(self.invite())
+        teen_cookie, teen_csrf = self.client.cookies.get('karl_family'), self.headers['X-CSRF-Token']
+        self.assertEqual(self.client.post('/api/family/tasks', headers=self.headers, json={'title': 'X', 'key_task': True}).status_code, 403)
+        self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 1, 'done': True}).status_code, 200)
+        self.assertEqual((task()['done'], task()['submitted_by']), (0, teen['user']['id']))
+        self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 2, 'review': 'approve'}).status_code, 403)
+
+        def as_parent():
+            self.client.cookies.clear()
+            self.client.cookies.set('karl_family', parent_cookie, domain='localhost.local', path='/api')
+            self.headers['X-CSRF-Token'] = parent_csrf
+        as_parent()
+        self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 2, 'review': 'reject'}).status_code, 200)
+        self.assertEqual((task()['done'], task()['submitted_by']), (0, None))
+        self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 3, 'review': 'approve'}).status_code, 409)
+        self.client.cookies.clear()
+        self.client.cookies.set('karl_family', teen_cookie, domain='localhost.local', path='/api')
+        self.headers['X-CSRF-Token'] = teen_csrf
+        self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 3, 'done': True}).raise_for_status()
+        as_parent()
+        self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 4, 'review': 'approve'}).raise_for_status()
+        self.assertEqual((task()['done'], task()['validated_by']), (1, self.session['user']['id']))
+        self.client.cookies.clear()
+        self.client.cookies.set('karl_family', teen_cookie, domain='localhost.local', path='/api')
+        self.headers['X-CSRF-Token'] = teen_csrf
+        self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 5, 'done': False}).status_code, 403)
+
     def test_calendar_export_is_private_folded_and_cannot_inject_properties(self):
         payload = self.event_payload() | {'title': 'Événement très long ' * 20 + '\nATTENDEE:attacker', 'location': 'Salle, A;B'}
         self.client.post('/api/family/events', headers=self.headers, json=payload)

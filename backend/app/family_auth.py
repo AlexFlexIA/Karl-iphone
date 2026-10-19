@@ -84,6 +84,12 @@ def initialize():
             db.execute("ALTER TABLE family_members ADD COLUMN badge INTEGER")
         for row in db.execute("SELECT id FROM family_members WHERE badge IS NULL ORDER BY is_owner DESC,rowid").fetchall():
             db.execute("UPDATE family_members SET badge=? WHERE id=?", (free_badge(db), row["id"]))
+        # Additive migration: key tasks need a parent's validation once a member reports them done.
+        columns = {row[1] for row in db.execute("PRAGMA table_info(family_tasks)")}
+        for column, kind in [("key_task", "INTEGER NOT NULL DEFAULT 0"), ("submitted_by", "TEXT REFERENCES family_members(id)"),
+                             ("submitted_at", "TEXT"), ("validated_by", "TEXT REFERENCES family_members(id)")]:
+            if column not in columns:
+                db.execute(f"ALTER TABLE family_tasks ADD COLUMN {column} {kind}")
 
 
 def free_badge(db):

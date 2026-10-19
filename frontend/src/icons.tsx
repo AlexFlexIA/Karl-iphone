@@ -38,6 +38,7 @@ const shapes: Record<string, ReactNode> = {
   storm: <><path d="M7 14h11a4 4 0 0 0 .4-8 6 6 0 0 0-11.6 2A3 3 0 0 0 7 14Z" /><path d="m12 15-2 4h4l-2 4" /></>,
   thermo: <><path d="M10 13.5V4a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0Z" /><path d="M12 9v7" /></>,
   bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7Z" />,
+  key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 9-9m-4 4 3 3m-6 0 2 2" /></>,
   offline: <><path d="m3 3 18 18M2 9a18 18 0 0 1 4-2m3-2a18 18 0 0 1 13 4M6 13a10 10 0 0 1 4-2m5 1 3 1M10 17a4 4 0 0 1 4 0M12 21h.01" /></>,
 }
 export function Icon({ name, className = '' }: { name: keyof typeof shapes; className?: string }) {

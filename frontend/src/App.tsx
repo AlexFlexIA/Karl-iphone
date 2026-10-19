@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Icon } from './icons'
 import { useVoice } from './useVoice'
 import { CronDashboard } from './CronDashboard'
+import './style.css'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Conversation = { id: string; title: string; updated_at: string; messages: number }

@@ -20,6 +20,14 @@ const shapes: Record<string, ReactNode> = {
   refresh: <><path d="M3 10a9 9 0 0 1 16-5l2 3M21 3v5h-5M21 14a9 9 0 0 1-16 5l-2-3M3 21v-5h5" /></>,
   chevron: <path d="m9 5 7 7-7 7" />,
   check: <path d="m4 12 5 5L20 6" />,
+  alert: <><path d="M12 3 2 20h20Z" /><path d="M12 10v4m0 3h.01" /></>,
+  pin: <><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.5" /></>,
+  share: <><path d="M12 15V3m-4 4 4-4 4 4" /><path d="M5 11v10h14V11" /></>,
+  list: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+  lanes: <><path d="M3 5h18M3 12h18M3 19h18" /><rect x="6" y="3" width="6" height="4" rx="1" /><rect x="11" y="10" width="8" height="4" rx="1" /><rect x="4" y="17" width="5" height="4" rx="1" /></>,
+  trash: <path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v6m4-6v6" />,
+  edit: <path d="m4 20 1-5L16 4l4 4L9 19Zm9-13 4 4" />,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   offline: <><path d="m3 3 18 18M2 9a18 18 0 0 1 4-2m3-2a18 18 0 0 1 13 4M6 13a10 10 0 0 1 4-2m5 1 3 1M10 17a4 4 0 0 1 4 0M12 21h.01" /></>,
 }
 export function Icon({ name, className = '' }: { name: keyof typeof shapes; className?: string }) {

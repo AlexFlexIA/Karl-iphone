@@ -1,6 +1,6 @@
 # KARL
 
-PWA React/TypeScript + FastAPI/SQLite : assistant personnel Hermes et espace familial séparé. Style néo-punk bleu, polices embarquées sous licence OFL. Aucun service supplémentaire pour le planning, les courses et les tâches.
+PWA React/TypeScript + FastAPI/SQLite : espace familial « Carnet » (planning, courses, tâches) et assistant personnel Hermes séparé. Polices embarquées sous licence OFL. Aucun service supplémentaire pour le planning, les courses et les tâches.
 
 ## Démarrer en local
 
@@ -29,6 +29,19 @@ Premier accès : **Espace personnel** → saisir `KARL_ACCESS_TOKEN` → bouton 
 Chaque invitation privée expire après 7 jours et ne sert qu’une fois. Son secret reste dans le fragment du lien et n’est pas envoyé dans l’URL au serveur. Une session individuelle dure jusqu’à 30 jours (cookie HttpOnly, Secure en HTTPS, SameSite=Lax, secret haché en base). Les écritures exigent une origine exacte et un jeton CSRF. Désactiver un membre révoque ses sessions/invitations. Les membres peuvent créer des activités, cocher les courses/tâches ; seuls l’auteur et les administrateurs modifient/retirent une activité. Les retraits sont annulables. Les versions détectent les modifications simultanées ; aucune écriture n’est rejouée automatiquement.
 
 Accueil du jour, liste de courses avec quantités/rayons, planning hebdomadaire avec participants/accompagnement et répétition à la semaine, tâches attribuées avec échéance. Actualisation toutes les 15 secondes dans l’onglet visible. Le planning est stocké dans KARL ; export `.ics` ponctuel des 9 prochaines semaines. **Aucune synchronisation Google Agenda ni notification automatique dans ce lot.** Hors ligne, aucune écriture ; les données déjà affichées restent seulement en mémoire.
+
+### Interface famille
+
+Direction « Carnet » : papier clair, encre, accent cobalt ; mode sombre automatique selon le réglage de l’appareil. Atkinson Hyperlegible pour le texte, Fraunces pour les titres. Tokens de design en tête de `frontend/src/family/family.css`.
+
+- Onglets en bas sous le pouce (Aujourd’hui, Planning, Courses, Tâches, Moi), barre latérale à partir de 960 px.
+- Aujourd’hui : résumé en une phrase, fil du jour avec la ligne « Maintenant », ajout rapide aux courses, tâches attribuées.
+- Planning : bande de la semaine, vue Liste ou Couloirs (une ligne par personne ; plein = participe, hachuré + voiture = accompagne).
+- Chaque membre garde un symbole fixe (forme + initiale + couleur, colonne `badge` ajoutée automatiquement au démarrage, sans perte de données) : aucune information ne repose sur la couleur seule.
+- Hors ligne : dernières données affichées en lecture seule, aucune écriture mise en attente. Mise à jour de l’app signalée par un bandeau, saisies en cours conservées dans l’onglet.
+- Objectif WCAG 2.2 AA : contrastes des tokens ≥ 4,5:1 (texte) et ≥ 3:1 (contrôles), focus visible, navigation clavier, `prefers-reduced-motion`, zones tactiles ≥ 44 px.
+
+L’espace personnel est chargé à la demande ; ses styles sont isolés dans une couche CSS.
 
 ### Connexion Google facultative
 

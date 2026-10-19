@@ -65,6 +65,31 @@ class FamilyTests(unittest.TestCase):
         members = self.client.get('/api/family/members').json()['members']
         self.assertTrue(all('email' not in row for row in members))
 
+    def test_each_member_keeps_a_distinct_badge_through_deactivation(self):
+        self.assertEqual(self.session['user']['badge'], 0)
+        teen = self.accept(self.invite())
+        self.client.post('/api/family/bootstrap', headers=self.headers | {'Authorization': 'Bearer owner-test-secret'})
+        self.headers['X-CSRF-Token'] = self.client.get('/api/auth/session').json()['csrf']
+        self.invite('other@example.test')
+        self.client.patch('/api/family/members/' + teen['user']['id'], headers=self.headers, json={'active': False})
+        self.invite('third@example.test')
+        badges = {row['name'] + str(row['badge']) for row in self.client.get('/api/family/members').json()['members']}
+        with database() as db:
+            rows = db.execute('SELECT email, badge FROM family_members ORDER BY badge').fetchall()
+        self.assertEqual([row['badge'] for row in rows], [0, 1, 2, 3])
+        self.assertEqual(rows[1]['email'], 'teen@example.test')
+        self.assertEqual(len(badges), 4)
+
+    def test_badge_migration_backfills_an_existing_database_without_losing_rows(self):
+        with database() as db, db:
+            db.execute("INSERT INTO family_members(id,name,email,role) VALUES('legacy','Ancien','legacy@example.test','member')")
+            db.execute('ALTER TABLE family_members DROP COLUMN badge')
+        family_auth.initialize()
+        with database() as db:
+            rows = db.execute('SELECT id, badge FROM family_members ORDER BY badge').fetchall()
+        self.assertEqual([row['badge'] for row in rows], [0, 1])
+        self.assertEqual(rows[1]['id'], 'legacy')
+
     def test_sessions_are_hashed_persistent_expiring_and_revocable(self):
         response = self.client.get('/api/auth/session')
         cookie = self.client.cookies.get('karl_family')

@@ -78,10 +78,21 @@ def initialize():
         if not db.execute("SELECT 1 FROM family_members WHERE is_owner=1").fetchone():
             db.execute("INSERT INTO family_members(id,name,role,is_owner) VALUES(?,?,'admin',1)",
                        (str(uuid4()), os.getenv("KARL_FAMILY_OWNER_NAME", "Administrateur")[:60]))
+        # Additive migration: each member keeps one shape/colour slot for life, so the
+        # interface never has to infer identity from list order or colour alone.
+        if "badge" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
+            db.execute("ALTER TABLE family_members ADD COLUMN badge INTEGER")
+        for row in db.execute("SELECT id FROM family_members WHERE badge IS NULL ORDER BY is_owner DESC,rowid").fetchall():
+            db.execute("UPDATE family_members SET badge=? WHERE id=?", (free_badge(db), row["id"]))
+
+
+def free_badge(db):
+    used = {row[0] for row in db.execute("SELECT badge FROM family_members WHERE badge IS NOT NULL")}
+    return next(slot for slot in range(len(used) + 1) if slot not in used)
 
 
 def user_public(row):
-    return {"id": row["id"], "name": row["name"], "role": row["role"], "is_owner": bool(row["is_owner"])}
+    return {"id": row["id"], "name": row["name"], "role": row["role"], "is_owner": bool(row["is_owner"]), "badge": row["badge"]}
 
 
 def find_session(request):
@@ -185,7 +196,8 @@ def invite(body: Invite, user=Depends(admin)):
             # Reissuing an invitation never changes an existing member's role.
         else:
             member_id = str(uuid4())
-            db.execute("INSERT INTO family_members(id,name,email,role) VALUES(?,?,?,?)", (member_id, body.name, body.email, body.role))
+            db.execute("INSERT INTO family_members(id,name,email,role,badge) VALUES(?,?,?,?,?)",
+                       (member_id, body.name, body.email, body.role, free_badge(db)))
         db.execute("DELETE FROM family_invites WHERE member_id=? OR expires_at<=?", (member_id, int(time.time())))
         db.execute("INSERT INTO family_invites VALUES(?,?,?)", (digest(token), member_id, int(time.time()) + 7 * 86400))
     return {"url": origin() + "/#invitation=" + token, "expires_in_days": 7}

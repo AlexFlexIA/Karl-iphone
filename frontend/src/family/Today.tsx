@@ -7,6 +7,7 @@ import { QuickAdd } from './Shopping'
 import { TaskRow } from './Tasks'
 import { Thread } from './Thread'
 import { Skeleton } from './ui'
+import { Weather } from './Weather'
 
 const standalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
@@ -35,6 +36,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
       <div><p>Ajoute KARL à ton écran d’accueil pour l’ouvrir comme une app.</p><button className="btn-quiet" onClick={() => ctx.go('me')}>Voir comment</button></div>
       <button className="icon-btn" aria-label="Masquer ce conseil" onClick={() => { writePreference('install-hint', 'hidden'); setInstallHint(false) }}><Icon name="close" /></button>
     </aside>}
+    <Weather ctx={ctx} />
     <div className="today-grid">
       <section aria-labelledby="today-thread" className="today-thread">
         <div className="section-head"><h2 id="today-thread">Fil du jour</h2><button className="btn-quiet" onClick={() => ctx.go('planning')}>Voir la semaine<Icon name="chevron" /></button></div>

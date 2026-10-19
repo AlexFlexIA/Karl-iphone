@@ -49,6 +49,12 @@ Les invitations fonctionnent sans Google. Pour activer la reconnexion Google, cr
 
 Flux serveur avec code d’autorisation, PKCE, état lié au navigateur, nonce, vérification de signature RS256, émetteur, destinataire et expiration du jeton. Seules les adresses invitées et vérifiées sont admises ; association ensuite à l’identifiant Google stable. Scopes `openid email` uniquement ; aucune lecture de Gmail/Agenda et aucun jeton Google conservé. [Documentation Google](https://developers.google.com/identity/openid-connect/openid-connect).
 
+## Météo de la famille
+
+Carte en tête de l’Accueil, visible par tous les membres : température extérieure de la station Bresser (dernier relevé, signalé s’il a plus de 90 minutes), prévision du jour (ciel, min/max, pluie, vent, matin/après-midi/soir) et couleur Tempo du lendemain avec un conseil d’usage. Station et Tempo viennent de la même projection en lecture seule que le dashboard personnel (`HERMES_CRON_DIR`) ; seuls ces deux relevés sont exposés aux comptes familiaux, jamais les tâches ni les rapports.
+
+Prévision : [Open-Meteo](https://open-meteo.com/) (modèle `meteofrance_seamless`, sans clé), en cache 30 minutes. Définir `KARL_WEATHER_LAT`, `KARL_WEATHER_LON` et éventuellement `KARL_WEATHER_PLACE` (libellé affiché). Sans coordonnées, la carte indique « Prévisions à configurer ».
+
 ## Hermes pour chaque membre
 
 Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversations, illisibles par les autres, propriétaire compris (404 identique à une conversation inexistante). Suppression possible par le membre ; un administrateur peut couper l’assistant d’un membre sans toucher à ses autres accès.

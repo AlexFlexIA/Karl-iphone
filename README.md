@@ -49,6 +49,10 @@ Les invitations fonctionnent sans Google. Pour activer la reconnexion Google, cr
 
 Flux serveur avec code d’autorisation, PKCE, état lié au navigateur, nonce, vérification de signature RS256, émetteur, destinataire et expiration du jeton. Seules les adresses invitées et vérifiées sont admises ; association ensuite à l’identifiant Google stable. Scopes `openid email` uniquement ; aucune lecture de Gmail/Agenda et aucun jeton Google conservé. [Documentation Google](https://developers.google.com/identity/openid-connect/openid-connect).
 
+## Invitations au planning
+
+Quand une activité concerne d’autres membres (participants ou accompagnateur), son auteur choisit **Informer** (ajout direct, comme avant) ou **Demander leur réponse**. Chaque invité voit alors l’invitation sur son Accueil et répond **Accepter** ou **Décliner** (table `family_event_replies`, colonne `ask`, ajoutées automatiquement). Les réponses s’affichent sur l’activité, en toutes lettres ; dans les couloirs, une réponse attendue est en pointillés avec une horloge et un invité qui décline n’apparaît plus. Changer le jour ou l’heure redemande une réponse à tous.
+
 ## Tâches clés
 
 Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre la coche, elle passe « à valider » (colonnes `submitted_by`/`submitted_at`, ajoutées automatiquement) au lieu de « fait » ; un administrateur la **valide** (`validated_by`) ou la renvoie **à refaire**, depuis l’Accueil ou l’écran Tâches. Une tâche clé validée ne peut être rouverte que par un administrateur ; un membre ne peut pas créer de tâche clé.

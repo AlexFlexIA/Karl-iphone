@@ -84,6 +84,12 @@ def initialize():
             db.execute("ALTER TABLE family_members ADD COLUMN badge INTEGER")
         for row in db.execute("SELECT id FROM family_members WHERE badge IS NULL ORDER BY is_owner DESC,rowid").fetchall():
             db.execute("UPDATE family_members SET badge=? WHERE id=?", (free_badge(db), row["id"]))
+        # Additive migration: an activity can ask its invitees to confirm instead of only informing them.
+        if "ask" not in {row[1] for row in db.execute("PRAGMA table_info(family_events)")}:
+            db.execute("ALTER TABLE family_events ADD COLUMN ask INTEGER NOT NULL DEFAULT 0")
+        db.execute("""CREATE TABLE IF NOT EXISTS family_event_replies (
+            event_id TEXT NOT NULL REFERENCES family_events(id), member_id TEXT NOT NULL REFERENCES family_members(id),
+            answer TEXT NOT NULL CHECK(answer IN ('pending','yes','no')), answered_at TEXT, PRIMARY KEY(event_id, member_id))""")
         # Additive migration: key tasks need a parent's validation once a member reports them done.
         columns = {row[1] for row in db.execute("PRAGMA table_info(family_tasks)")}
         for column, kind in [("key_task", "INTEGER NOT NULL DEFAULT 0"), ("submitted_by", "TEXT REFERENCES family_members(id)"),

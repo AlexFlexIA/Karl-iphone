@@ -9,8 +9,10 @@ export type Task = {
 export type FamilyEvent = {
   id: string; title: string; starts_at: string; ends_at: string; series_starts_at: string; series_ends_at: string
   attendees: string[]; driver_id: string | null; location: string; recurrence: 'once' | 'weekly'; created_by: string; version: number
+  ask: number; replies: Record<string, Answer>
 }
-export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; at: Date }
+export type Answer = 'pending' | 'yes' | 'no'
+export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; pending: FamilyEvent[]; at: Date }
 export type View = 'today' | 'planning' | 'shopping' | 'tasks' | 'assistant' | 'me'
 
 export const categories = ['Fruits et légumes', 'Frais', 'Épicerie', 'Maison', 'Autres'] as const
@@ -42,3 +44,7 @@ export function due(date: string | null, today: string): { label: string; late: 
 }
 
 export const eventDay = (event: FamilyEvent) => dateKey(new Date(event.starts_at))
+
+export const answerText: Record<Answer, string> = { pending: 'attend sa réponse', yes: 'a accepté', no: 'a décliné' }
+// A member who declined is no longer counted as taking part or driving.
+export const declined = (event: FamilyEvent, id: string | null) => !!id && event.replies?.[id] === 'no'

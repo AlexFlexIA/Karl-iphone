@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
-import { capitalize, eventDay, longDate, plural } from './model'
+import { capitalize, clock, dateKey, eventDay, longDate, plural } from './model'
+import type { FamilyEvent } from './model'
 import { QuickAdd } from './Shopping'
 import { TaskRow } from './Tasks'
 import { Thread } from './Thread'
-import { Skeleton } from './ui'
+import { Person, Skeleton } from './ui'
 import { Weather } from './Weather'
 
 const standalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
@@ -19,6 +20,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const pending = data?.items.filter(item => !item.checked) ?? []
   const mine = data?.tasks.filter(task => !task.done && task.assignee_id === user.id) ?? []
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
+  const invites = data?.pending ?? []
   const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
   const hour = ctx.now.getHours()
   const greeting = hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour'
@@ -49,6 +51,10 @@ export function Today({ ctx }: { ctx: Ctx }) {
           {data && pending.length > 0 && <p className="muted">{pending.slice(0, 4).map(item => item.name).join(', ')}{pending.length > 4 ? '…' : ''}</p>}
           <QuickAdd ctx={ctx} />
         </section>
+        {invites.length > 0 && <section aria-labelledby="today-invites" className="today-invites">
+          <div className="section-head"><h2 id="today-invites">Invitations</h2><span className="muted">{plural(invites.length, 'réponse attendue', 'réponses attendues')}</span></div>
+          <ul className="rows">{invites.map(event => <Invitation ctx={ctx} event={event} key={event.id} />)}</ul>
+        </section>}
         {toReview.length > 0 && <section aria-labelledby="today-review" className="today-review">
           <div className="section-head"><h2 id="today-review">À valider</h2><button className="btn-quiet" onClick={() => ctx.go('tasks')}>{plural(toReview.length, 'tâche clé', 'tâches clés')}<Icon name="chevron" /></button></div>
           <ul className="rows">{toReview.slice(0, 5).map(task => <TaskRow ctx={ctx} task={task} key={task.id} />)}</ul>
@@ -61,4 +67,27 @@ export function Today({ ctx }: { ctx: Ctx }) {
       </div>
     </div>
   </div>
+}
+
+const weekdays = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+
+function Invitation({ ctx, event }: { ctx: Ctx; event: FamilyEvent }) {
+  const start = new Date(event.series_starts_at)
+  const when = event.recurrence === 'weekly' ? `Chaque ${weekdays[start.getDay()]}, ${clock(event.series_starts_at)}–${clock(event.series_ends_at)}`
+    : `${capitalize(longDate(dateKey(start)))}, ${clock(event.series_starts_at)}–${clock(event.series_ends_at)}`
+  const role = event.driver_id === ctx.user.id && !event.attendees.includes(ctx.user.id) ? 'pour accompagner' : 'pour participer'
+  const answer = (value: 'yes' | 'no') => void ctx.run(async () => {
+    await ctx.api(`family/events/${event.id}/reply`, { method: 'POST', body: JSON.stringify({ answer: value }) })
+  }, value === 'yes' ? `C’est noté : tu participes à « ${event.title} ».` : `Réponse envoyée : tu déclines « ${event.title} ».`)
+  return <li className="row invitation-row">
+    <span className="row-text">
+      <span className="row-title">{event.title}</span>
+      <span className="row-meta"><span>{when}</span>{event.location && <span><Icon name="pin" />{event.location}</span>}</span>
+      <span className="row-meta"><Person member={ctx.find(event.created_by)} fallback="Un membre" /><span>t’invite {role}</span></span>
+    </span>
+    <span className="review-actions">
+      <button className="btn btn-gold btn-small" disabled={ctx.disabled} onClick={() => answer('yes')}><Icon name="check" />Accepter<span className="sr-only"> « {event.title} »</span></button>
+      <button className="btn btn-secondary btn-small" disabled={ctx.disabled} onClick={() => answer('no')}><Icon name="close" />Décliner<span className="sr-only"> « {event.title} »</span></button>
+    </span>
+  </li>
 }

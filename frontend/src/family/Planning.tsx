@@ -4,7 +4,7 @@ import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
 import type { FamilyEvent, Member } from './model'
-import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, plural, shortDate, timeKey } from './model'
+import { addDays, capitalize, clock, dateKey, declined, eventDay, fromKey, longDate, plural, shortDate, timeKey } from './model'
 import { Thread } from './Thread'
 import { Badge, badgeOf, ScreenHead, Skeleton } from './ui'
 
@@ -36,7 +36,7 @@ function Lanes({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; day: str
   const at = (hour: number) => `${((Math.min(Math.max(hour, first), last) - first) / span) * 100}%`
   const lanes: { key: string; member: Member | null; blocks: Block[] }[] = ctx.members.map(member => ({
     key: member.id, member,
-    blocks: layout(events, day, event => event.attendees.includes(member.id) ? 'attend' : event.driver_id === member.id ? 'drive' : null),
+    blocks: layout(events, day, event => declined(event, member.id) ? null : event.attendees.includes(member.id) ? 'attend' : event.driver_id === member.id ? 'drive' : null),
   }))
   const everyone = layout(events, day, event => event.attendees.length ? null : 'attend')
   if (everyone.length) lanes.push({ key: 'all', member: null, blocks: everyone })
@@ -72,11 +72,12 @@ function Lanes({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; day: str
               {lane.blocks.map(block => {
                 const look = badgeOf(lane.member)
                 const style = { left: at(block.start), width: `calc(${at(block.end)} - ${at(block.start)})`, top: 4 + block.row * 48, '--fill': lane.member ? look.fill : 'var(--ink)', '--fill-ink': lane.member ? look.ink : 'var(--paper)' } as CSSProperties
-                const label = `${block.event.title}, ${clock(block.event.starts_at)} à ${clock(block.event.ends_at)}${block.role === 'drive' ? ', accompagne' : ''}`
-                const content = <>{block.role === 'drive' && <Icon name="car" />}<span>{block.event.title}</span></>
+                const waiting = !!lane.member && block.event.replies?.[lane.member.id] === 'pending'
+                const label = `${block.event.title}, ${clock(block.event.starts_at)} à ${clock(block.event.ends_at)}${block.role === 'drive' ? ', accompagne' : ''}${waiting ? ', réponse attendue' : ''}`
+                const content = <>{block.role === 'drive' && <Icon name="car" />}{waiting && <Icon name="clock" />}<span>{waiting ? '? ' : ''}{block.event.title}</span></>
                 return ctx.canManage(block.event.created_by)
-                  ? <button key={block.event.id + block.role} className={`block block-${block.role}`} style={style} aria-label={label + '. Modifier'} title={label} disabled={ctx.disabled} onClick={() => ctx.editEvent(block.event)}>{content}</button>
-                  : <span key={block.event.id + block.role} className={`block block-${block.role}`} style={style} role="img" aria-label={label} title={label}>{content}</span>
+                  ? <button key={block.event.id + block.role} className={`block block-${block.role}${waiting ? ' block-waiting' : ''}`} style={style} aria-label={label + '. Modifier'} title={label} disabled={ctx.disabled} onClick={() => ctx.editEvent(block.event)}>{content}</button>
+                  : <span key={block.event.id + block.role} className={`block block-${block.role}${waiting ? ' block-waiting' : ''}`} style={style} role="img" aria-label={label} title={label}>{content}</span>
               })}
             </div>
           </div>
@@ -86,6 +87,7 @@ function Lanes({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; day: str
     <figcaption className="legend">
       <span><span className="legend-swatch" aria-hidden="true" />Participe</span>
       <span><span className="legend-swatch legend-drive" aria-hidden="true"><Icon name="car" /></span>Accompagne</span>
+      {events.some(event => Object.values(event.replies ?? {}).includes('pending')) && <span><span className="legend-swatch legend-waiting" aria-hidden="true"><Icon name="clock" /></span>Réponse attendue</span>}
       {showNow && <span><span className="legend-now" aria-hidden="true" />Maintenant</span>}
       <span>Touchez une activité pour la modifier.</span>
     </figcaption>

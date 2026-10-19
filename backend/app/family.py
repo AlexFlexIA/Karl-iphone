@@ -103,6 +103,7 @@ class EventInput(BaseModel):
     driver_id: str | None = Field(default=None, max_length=80)
     location: str = Field(default="", max_length=160)
     recurrence: Literal["once", "weekly"] = "once"
+    ask: bool = False
 
     _title = field_validator("title")(required)
 
@@ -125,10 +126,32 @@ class EventEdit(EventInput):
     version: int = Field(ge=1)
 
 
+def invitees(body, creator):
+    return [value for value in dict.fromkeys([*body.attendees, body.driver_id]) if value and value != creator]
+
+
+def sync_replies(db, event_id, body, creator, reset):
+    """Asking mode keeps one reply per invited member; a new time puts every answer back to pending."""
+    wanted = invitees(body, creator) if body.ask else []
+    db.execute(f"DELETE FROM family_event_replies WHERE event_id=? AND member_id NOT IN ({','.join('?' * len(wanted))})", (event_id, *wanted))
+    if reset:
+        db.execute("UPDATE family_event_replies SET answer='pending',answered_at=NULL WHERE event_id=?", (event_id,))
+    db.executemany("INSERT OR IGNORE INTO family_event_replies(event_id,member_id,answer) VALUES(?,?,'pending')",
+                   [(event_id, value) for value in wanted])
+
+
+def replies(db):
+    result = {}
+    for row in db.execute("SELECT event_id,member_id,answer FROM family_event_replies"):
+        result.setdefault(row["event_id"], {})[row["member_id"]] = row["answer"]
+    return result
+
+
 def occurrences(db, first, last):
     start = datetime.combine(first, datetime.min.time(), PARIS)
     end = datetime.combine(last + timedelta(days=1), datetime.min.time(), PARIS)
     rows = db.execute("SELECT * FROM family_events WHERE deleted=0 ORDER BY starts_at LIMIT 2000").fetchall()
+    answers = replies(db)
     result = []
     for row in rows:
         beginning = datetime.fromisoformat(row["starts_at"]).astimezone(PARIS)
@@ -145,7 +168,8 @@ def occurrences(db, first, last):
             if ending > start:
                 item = dict(row)
                 item.update(starts_at=beginning.isoformat(), ends_at=ending.isoformat(),
-                            series_starts_at=row["starts_at"], series_ends_at=row["ends_at"], attendees=json.loads(row["attendees"]))
+                            series_starts_at=row["starts_at"], series_ends_at=row["ends_at"], attendees=json.loads(row["attendees"]),
+                            replies=answers.get(row["id"], {}))
                 result.append(item)
             if not weekly:
                 break
@@ -169,11 +193,38 @@ def add_event(body: EventInput, user=Depends(member)):
         active_ids(db, [*body.attendees, body.driver_id])
         if db.execute("SELECT COUNT(*) FROM family_events WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "Le planning est plein. Retirez les anciens événements.")
-        db.execute("""INSERT INTO family_events(id,title,starts_at,ends_at,attendees,driver_id,location,recurrence,created_by)
-            VALUES(?,?,?,?,?,?,?,?,?)""", (event_id, body.title, body.starts_at.astimezone(timezone.utc).isoformat(),
+        db.execute("""INSERT INTO family_events(id,title,starts_at,ends_at,attendees,driver_id,location,recurrence,created_by,ask)
+            VALUES(?,?,?,?,?,?,?,?,?,?)""", (event_id, body.title, body.starts_at.astimezone(timezone.utc).isoformat(),
                                            body.ends_at.astimezone(timezone.utc).isoformat(), json.dumps(body.attendees),
-                                           body.driver_id, body.location.strip(), body.recurrence, user["id"]))
+                                           body.driver_id, body.location.strip(), body.recurrence, user["id"], body.ask))
+        sync_replies(db, event_id, body, user["id"], reset=False)
     return {"id": event_id}
+
+
+@router.get("/events/pending")
+def pending_replies(user=Depends(member)):
+    """Invitations waiting for this member's answer, whatever the week on screen."""
+    with database() as db:
+        rows = db.execute("""SELECT e.* FROM family_events e JOIN family_event_replies r ON r.event_id=e.id
+            WHERE r.member_id=? AND r.answer='pending' AND e.deleted=0 AND (e.recurrence='weekly' OR e.ends_at>?)
+            ORDER BY e.starts_at LIMIT 50""", (user["id"], now())).fetchall()
+        answers = replies(db)
+    return {"events": [{**dict(row), "attendees": json.loads(row["attendees"]), "series_starts_at": row["starts_at"],
+                        "series_ends_at": row["ends_at"], "replies": answers.get(row["id"], {})} for row in rows]}
+
+
+class Reply(BaseModel):
+    answer: Literal["yes", "no"]
+
+
+@router.post("/events/{event_id}/reply")
+def reply(event_id: str, body: Reply, user=Depends(member)):
+    with database() as db, db:
+        cursor = db.execute("""UPDATE family_event_replies SET answer=?,answered_at=? WHERE event_id=? AND member_id=?
+            AND EXISTS(SELECT 1 FROM family_events WHERE id=? AND deleted=0)""", (body.answer, now(), event_id, user["id"], event_id))
+        if cursor.rowcount != 1:
+            raise HTTPException(404, "Cette invitation n’existe plus. Actualisez le planning.")
+    return {"ok": True}
 
 
 @router.patch("/events/{event_id}")
@@ -200,12 +251,14 @@ def edit_event(event_id: str, body: EventEdit, user=Depends(member)):
         if row["created_by"] != user["id"] and user["role"] != "admin":
             raise HTTPException(403, "Seul l’auteur ou un parent peut modifier cet événement.")
         active_ids(db, [*body.attendees, body.driver_id])
-        cursor = db.execute("""UPDATE family_events SET title=?,starts_at=?,ends_at=?,attendees=?,driver_id=?,location=?,recurrence=?,
-            version=version+1 WHERE id=? AND version=?""", (body.title, body.starts_at.astimezone(timezone.utc).isoformat(),
-                body.ends_at.astimezone(timezone.utc).isoformat(), json.dumps(body.attendees), body.driver_id,
-                body.location.strip(), body.recurrence, event_id, body.version))
+        starts, ends = body.starts_at.astimezone(timezone.utc).isoformat(), body.ends_at.astimezone(timezone.utc).isoformat()
+        cursor = db.execute("""UPDATE family_events SET title=?,starts_at=?,ends_at=?,attendees=?,driver_id=?,location=?,recurrence=?,ask=?,
+            version=version+1 WHERE id=? AND version=?""", (body.title, starts, ends, json.dumps(body.attendees), body.driver_id,
+                body.location.strip(), body.recurrence, body.ask, event_id, body.version))
         if cursor.rowcount != 1:
             raise HTTPException(409, "Cet événement a changé sur un autre appareil. Actualisez le planning.")
+        moved = (row["starts_at"], row["ends_at"], row["recurrence"]) != (starts, ends, body.recurrence)
+        sync_replies(db, event_id, body, row["created_by"], reset=moved)
     return {"ok": True}
 
 

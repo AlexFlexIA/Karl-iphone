@@ -474,3 +474,25 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .key-toggle>span{display:flex;flex-direction:column;gap:2px}
 .key-toggle strong{display:flex;align-items:center;gap:var(--s1)}
 .key-toggle .icon{width:18px;height:18px}
+
+/* Planning invitations: inform, or ask each invitee to answer */
+.ask-mode{display:flex;flex-direction:column;gap:var(--s2);border:0;padding:0;margin:0;min-width:0}
+.ask-mode legend{font-weight:700;margin-bottom:var(--s2)}
+.ask-option{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3);border:2px solid var(--line);border-radius:var(--r-m);cursor:pointer}
+.ask-option:has(input:checked){border-color:var(--accent);background:var(--sunken)}
+.ask-option input{width:22px;height:22px;margin-top:2px;flex-shrink:0;accent-color:var(--accent)}
+.ask-option>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ask-option strong{display:flex;align-items:center;gap:var(--s1)}
+.ask-option .icon{width:18px;height:18px}
+.invitee{display:inline-flex;flex-wrap:wrap;align-items:center;gap:var(--s1)}
+.invitee .answer{font-size:var(--text-xs);color:var(--muted)}
+.invitee .answer::before{content:'· '}
+.invitee.is-pending .answer{font-weight:700;color:var(--ink)}
+.invitee.is-no .person{text-decoration:line-through;text-decoration-thickness:1px}
+.invitation-row{padding:var(--s3) 0}
+.invitation-row .row-text{flex:1;min-width:0}
+.invitation-row .review-actions{padding-left:0;padding-top:var(--s2)}
+.block-waiting{outline:2px dashed var(--ink);outline-offset:-2px;opacity:.85}
+.block .icon+.icon{margin-left:-2px}
+.legend-waiting{display:inline-grid;place-content:center;outline:2px dashed var(--ink);outline-offset:-2px}
+.legend-waiting .icon{width:12px;height:12px}

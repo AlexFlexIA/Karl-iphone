@@ -198,6 +198,44 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json={'version': 2, 'deleted': True}).status_code, 403)
         self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'][0]['done'], 1)
 
+    def test_invitations_can_inform_or_ask_and_a_new_time_asks_again(self):
+        parent_cookie, parent_csrf = self.client.cookies.get('karl_family'), self.session['csrf']
+        teen = self.accept(self.invite())
+        teen_cookie, teen_csrf = self.client.cookies.get('karl_family'), self.headers['X-CSRF-Token']
+        me, kid = self.session['user']['id'], teen['user']['id']
+
+        def as_(cookie, csrf):
+            self.client.cookies.clear()
+            self.client.cookies.set('karl_family', cookie, domain='localhost.local', path='/api')
+            self.headers['X-CSRF-Token'] = csrf
+        as_(parent_cookie, parent_csrf)
+        informed = self.client.post('/api/family/events', headers=self.headers, json=self.event_payload() | {'attendees': [me, kid]}).json()['id']
+        asked = self.client.post('/api/family/events', headers=self.headers, json=self.event_payload() | {
+            'title': 'Dîner chez Mamie', 'attendees': [me, kid], 'ask': True}).json()['id']
+        events = {row['id']: row for row in self.client.get('/api/family/events?first=2026-10-19&last=2026-10-25').json()['events']}
+        self.assertEqual(events[informed]['replies'], {})
+        self.assertEqual(events[asked]['replies'], {kid: 'pending'})
+        self.assertEqual(self.client.get('/api/family/events/pending').json()['events'], [])
+        self.assertEqual(self.client.post(f'/api/family/events/{asked}/reply', headers=self.headers, json={'answer': 'yes'}).status_code, 404)
+        as_(teen_cookie, teen_csrf)
+        self.assertEqual([row['id'] for row in self.client.get('/api/family/events/pending').json()['events']], [asked])
+        self.client.post(f'/api/family/events/{asked}/reply', headers=self.headers, json={'answer': 'no'}).raise_for_status()
+        self.assertEqual(self.client.get('/api/family/events/pending').json()['events'], [])
+        as_(parent_cookie, parent_csrf)
+        row = next(r for r in self.client.get('/api/family/events?first=2026-10-19&last=2026-10-25').json()['events'] if r['id'] == asked)
+        self.assertEqual(row['replies'], {kid: 'no'})
+        same = self.event_payload() | {'title': 'Dîner chez Mamie !', 'attendees': [me, kid], 'ask': True, 'version': row['version']}
+        self.client.put('/api/family/events/' + asked, headers=self.headers, json=same).raise_for_status()
+        row = next(r for r in self.client.get('/api/family/events?first=2026-10-19&last=2026-10-25').json()['events'] if r['id'] == asked)
+        self.assertEqual(row['replies'], {kid: 'no'})
+        later = same | {'starts_at': '2026-10-20T19:00:00+02:00', 'ends_at': '2026-10-20T21:00:00+02:00', 'version': row['version']}
+        self.client.put('/api/family/events/' + asked, headers=self.headers, json=later).raise_for_status()
+        row = next(r for r in self.client.get('/api/family/events?first=2026-10-19&last=2026-10-25').json()['events'] if r['id'] == asked)
+        self.assertEqual(row['replies'], {kid: 'pending'})
+        self.client.put('/api/family/events/' + asked, headers=self.headers, json=later | {'ask': False, 'version': row['version']}).raise_for_status()
+        row = next(r for r in self.client.get('/api/family/events?first=2026-10-19&last=2026-10-25').json()['events'] if r['id'] == asked)
+        self.assertEqual(row['replies'], {})
+
     def test_key_task_reported_done_by_a_member_waits_for_a_parent(self):
         parent_cookie, parent_csrf = self.client.cookies.get('karl_family'), self.session['csrf']
         task_id = self.client.post('/api/family/tasks', headers=self.headers, json={'title': 'Ranger la chambre', 'key_task': True}).json()['id']

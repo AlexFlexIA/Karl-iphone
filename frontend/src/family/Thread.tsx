@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { Icon } from '../icons'
 import type { Ctx } from './context'
 import type { FamilyEvent } from './model'
-import { clock, timeKey } from './model'
+import { answerText, clock, declined, timeKey } from './model'
 import { Empty, Person } from './ui'
 
 // The day as a ruled notebook page: one line per activity, and a written
@@ -29,10 +29,11 @@ export function Thread({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; 
           {state === 'past' && <span className="tag">Terminé</span>}
           {state === 'live' && <span className="tag tag-strong"><Icon name="clock" />En cours</span>}
           <span className="thread-meta">
-            {event.attendees.length ? event.attendees.map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />) : <Person member={null} />}
+            {event.attendees.length ? event.attendees.map(id => <span key={id} className={`invitee ${event.replies?.[id] ? 'is-' + event.replies[id] : ''}`}>
+              <Person member={ctx.find(id)} fallback="Ancien membre" />{event.replies?.[id] && <span className="answer">{answerText[event.replies[id]]}</span>}</span>) : <Person member={null} />}
           </span>
-          {event.driver_id && <span className="thread-meta"><Icon name="car" /><span>{driver?.name ?? 'Ancien membre'} accompagne</span></span>}
-          {!event.driver_id && event.attendees.length > 0 && <span className="thread-meta"><Icon name="car" /><span>Accompagnement à organiser</span></span>}
+          {event.driver_id && !declined(event, event.driver_id) && <span className="thread-meta"><Icon name="car" /><span>{driver?.name ?? 'Ancien membre'} accompagne{event.replies?.[event.driver_id] === 'pending' ? ' (attend sa réponse)' : ''}</span></span>}
+          {(!event.driver_id || declined(event, event.driver_id)) && event.attendees.length > 0 && <span className="thread-meta"><Icon name="car" /><span>Accompagnement à organiser{declined(event, event.driver_id) ? ` · ${driver?.name ?? 'l’accompagnateur'} a décliné` : ''}</span></span>}
           {event.location && <span className="thread-meta"><Icon name="pin" /><span>{event.location}</span></span>}
           {event.recurrence === 'weekly' && <span className="thread-meta"><Icon name="refresh" /><span>Chaque semaine</span></span>}
         </span>

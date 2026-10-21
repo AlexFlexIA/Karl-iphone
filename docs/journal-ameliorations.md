@@ -62,5 +62,12 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Vérification complète sur base vide : 73 tests serveur, build, parcours navigateur (8/8), axe sans défaut.
 - Aperçu des courses du menu regroupé par rayon, dans l’ordre de la liste.
 
+### Quatrième relecture (10 points, tous traités)
+- « cafe » et « Café » de nouveau regroupés (exception ciblée pour « pâté ») ; rayon retrouvé sans accent.
+- Propositions renvoyées à Hermes dans le format qu’il écrit lui-même ; liste des rayons non dupliquée.
+- Rattrapage `joined_at` relancé à chaque démarrage pour les membres non marqués.
+- Rappel déplacé avec la date de sa tâche ; activité de nuit raccourcie en soirée sans devenir une journée de 27 h ; fin à 7 jours proposée.
+- Couloirs recentrés quand la plage horaire change ; une seule règle pour la semaine de l’Accueil ; totaux du menu recalculés toutes les 5 minutes.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

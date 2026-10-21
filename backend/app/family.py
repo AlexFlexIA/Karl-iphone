@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .family_auth import Invite, member
 from .store import database
-from .words import key_of
+from .words import aisle_of, key_of
 
 router = APIRouter(prefix="/api/family")
 PARIS = ZoneInfo("Europe/Paris")
@@ -84,8 +84,10 @@ def add_item(body: ItemInput, user=Depends(member)):
                 return {"id": row["id"], "duplicate": True}
         if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
+        # Without an explicit aisle, the same guess as for menu ingredients files the item.
+        category = body.category if "category" in body.model_fields_set else aisle_of(body.name)
         db.execute("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
-                   (item_id, body.name, body.quantity.strip(), body.category, user["id"], now()))
+                   (item_id, body.name, body.quantity.strip(), category, user["id"], now()))
     return {"id": item_id, "duplicate": False}
 
 

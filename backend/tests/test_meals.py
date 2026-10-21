@@ -210,5 +210,15 @@ class MealTests(unittest.TestCase):
         self.assertEqual(names(), ['Beurre', 'Jambon', 'Pain'])
 
 
+    def test_items_without_an_aisle_get_a_guessed_one(self):
+        self.post('items', {'name': 'Pommes'})
+        self.post('items', {'name': 'Lessive', 'category': 'Maison'})
+        self.post('items', {'name': 'Piles'})
+        self.post('items', {'name': 'Bougies'})
+        self.post('items', {'name': 'Yaourts', 'category': 'Autres'})
+        aisles = {item['name']: item['category'] for item in self.client.get('/api/family/items').json()['items']}
+        self.assertEqual(aisles, {'Pommes': 'Fruits et légumes', 'Lessive': 'Maison', 'Piles': 'Maison', 'Yaourts': 'Autres', 'Bougies': 'Autres'})
+
+
 if __name__ == '__main__':
     unittest.main()

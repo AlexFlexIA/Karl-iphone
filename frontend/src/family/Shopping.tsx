@@ -11,7 +11,7 @@ import { Empty, ScreenHead, Sheet, Skeleton, useOptimistic } from './ui'
 export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boolean }) {
   const [name, setName] = useState(() => readDraft('item'))
   const [quantity, setQuantity] = useState('')
-  const [category, setCategory] = useState<string>('Autres')
+  const [category, setCategory] = useState<string>('')
   const [more, setMore] = useState(false)
   const id = detailed ? 'item-name' : 'item-quick'
   const update = (value: string) => { setName(value); writeDraft('item', value) }
@@ -20,7 +20,7 @@ export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boole
     const label = name.trim()
     let duplicate = false
     if (await ctx.run(async () => {
-      duplicate = (await ctx.api('family/items', { method: 'POST', body: JSON.stringify({ name: label, quantity, category }) })).duplicate
+      duplicate = (await ctx.api('family/items', { method: 'POST', body: JSON.stringify({ name: label, quantity, ...(category ? { category } : {}) }) })).duplicate
     })) { update(''); setQuantity(''); ctx.notify(duplicate ? `« ${label} » est déjà sur la liste : rien n’a été ajouté.` : `« ${label} » ajouté à la liste.`) }
   }
   return <form className="quick-add" onSubmit={add}>
@@ -33,7 +33,7 @@ export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boole
       <button type="button" className="btn-quiet" aria-expanded={more} onClick={() => setMore(value => !value)}>{more ? 'Masquer les détails' : 'Préciser la quantité ou le rayon'}</button>
       {more && <div className="compose-row">
         <div className="field"><label htmlFor="item-quantity">Quantité</label><input id="item-quantity" value={quantity} onChange={event => setQuantity(event.target.value)} maxLength={60} placeholder="2 bouteilles" /></div>
-        <div className="field"><label htmlFor="item-category">Rayon</label><select id="item-category" value={category} onChange={event => setCategory(event.target.value)}>{categories.map(name => <option key={name}>{name}</option>)}</select></div>
+        <div className="field"><label htmlFor="item-category">Rayon</label><select id="item-category" value={category} onChange={event => setCategory(event.target.value)}><option value="">Deviner d’après le nom</option>{categories.map(name => <option key={name}>{name}</option>)}</select></div>
       </div>}
     </>}
   </form>

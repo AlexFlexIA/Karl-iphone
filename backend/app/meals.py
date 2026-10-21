@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from .family import now, required
-from .words import key_of, plain
+from .words import aisle_of, key_of, plain
 from .family_auth import member
 from .store import database
 
@@ -29,27 +29,6 @@ UNITS = [
 ]
 BASE = {"kg": ("g", 1000), "g": ("g", 1), "l": ("ml", 1000), "dl": ("ml", 100), "cl": ("ml", 10), "ml": ("ml", 1)}
 FRACTIONS = {"½": Fraction(1, 2), "¼": Fraction(1, 4), "¾": Fraction(3, 4)}
-# A small, editable guess so generated items land in a sensible aisle; anything else goes to « Autres ».
-AISLES = {
-    "Fruits et légumes": "pomme poire banane citron orange fraise tomate carotte courgette oignon echalote ail salade poireau "
-                         "pomme de terre patate champignon poivron aubergine epinard brocoli chou concombre avocat persil "
-                         "basilic coriandre ciboulette herbes legume fruit haricot courge potiron navet radis",
-    "Frais": "lait beurre creme oeuf yaourt fromage gruyere emmental parmesan mozzarella feta comte jambon lardon poulet "
-             "boeuf veau porc dinde steak viande saumon cabillaud poisson crevette feuilletee brisee",
-    "Épicerie": "farine sucre sel poivre huile vinaigre riz pates spaghetti semoule lentille pois chiche quinoa chocolat "
-                "levure miel moutarde bouillon epice cumin curry paprika thym laurier conserve sauce tomate concentre "
-                "biscuit cereale cafe confiture coco amande noix",
-}
-
-
-def aisle_of(name):
-    words = set(key_of(name).split())
-    for aisle, vocabulary in AISLES.items():
-        if words & {key_of(term) for term in vocabulary.split()}:
-            return aisle
-    return "Autres"
-
-
 def number(token):
     if token in FRACTIONS:
         return FRACTIONS[token]

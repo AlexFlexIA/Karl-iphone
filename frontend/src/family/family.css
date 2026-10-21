@@ -524,3 +524,4 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .row-open{width:100%;justify-content:space-between;text-align:left}
 .row-open > .icon{color:var(--muted);flex-shrink:0}
 .sheet-body .field-narrow{max-width:16rem}
+.suggestions{margin-bottom:var(--s2)}.suggestions .chip{text-align:left;padding:var(--s2) var(--s4);line-height:1.3}

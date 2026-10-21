@@ -7,9 +7,10 @@ import { capitalize, clock, dateKey, longDate, plural } from './model'
 import { Empty, Person, ScreenHead, Skeleton } from './ui'
 
 type Proposal = {
-  kind?: 'event' | 'task' | 'item' | 'memory'; title: string; event_id?: string | null; ref?: string | null
+  kind?: 'event' | 'task' | 'item' | 'memory' | 'meal'; title: string; event_id?: string | null; ref?: string | null
   starts_at?: string; ends_at?: string; location?: string; attendees?: string[]
   due_date?: string | null; assignee_id?: string | null; quantity?: string; category?: string
+  day?: string; slot?: 'lunch' | 'dinner'; servings?: number
 }
 // Older replies only carried calendar proposals, without a kind.
 const kindOf = (proposal: Proposal) => proposal.kind ?? 'event'
@@ -18,6 +19,7 @@ const verbs = {
   event: { action: 'Ajouter au planning', done: 'Ajouté au planning', icon: 'calendar' },
   task: { action: 'Créer la tâche', done: 'Tâche créée', icon: 'check' },
   item: { action: 'Ajouter aux courses', done: 'Ajouté aux courses', icon: 'cart' },
+  meal: { action: 'Prévoir ce repas', done: 'Ajouté au menu', icon: 'list' },
   memory: { action: 'Retenir', done: 'Retenu · modifiable dans « Moi »', icon: 'key' },
 } as const
 type Message = { id: number | string; role: 'user' | 'assistant'; content: string; proposals: Proposal[]; created_at: string }
@@ -25,6 +27,8 @@ type Thread = { id: string; title: string; updated_at: string }
 type Overview = { enabled: boolean; configured: boolean; remaining: number; threads: Thread[] }
 
 const fresh = (): string => crypto.randomUUID()
+// Starting points that use what KARL already gives Hermes; touching one only fills the field.
+const suggestions = ['Fais-moi le point sur ma semaine', 'Propose un menu pour la semaine avec nos recettes', 'Qu’est-ce qui manque sur la liste de courses pour le menu ?', 'Aide-moi à organiser mes tâches en retard']
 const wide = matchMedia('(min-width: 900px)').matches
 
 // A private thread per member: nobody else in the family, owner included, can open it.
@@ -119,6 +123,9 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
       <div className="assistant-chat">
         <h2 className="sr-only">{current ? current.title : 'Nouvelle conversation'}</h2>
         <div className="chat-log" role="log" aria-live="polite" aria-busy={loading || waiting}>
+          {!loading && !messages.length && <div className="chips suggestions" role="group" aria-label="Idées de demandes">
+            {suggestions.map(text => <button key={text} type="button" className="chip" onClick={() => { update(text); field.current?.focus() }}>{text}</button>)}
+          </div>}
           {loading ? <Skeleton lines={3} /> : !messages.length && <Empty title={`Bonjour ${ctx.user.name} !`}>
             Pose une question, demande un coup de main, ou dis par exemple « ajoute piscine mercredi à 17 h », « rappelle-moi d’appeler le dentiste » ou « mets du lait sur la liste ». Rien n’est ajouté ni retenu sans ton accord, et Hermes n’achète, n’envoie et ne supprime jamais rien.
           </Empty>}
@@ -134,7 +141,8 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
                     {proposal.location && <span><Icon name="pin" />{proposal.location}</span>}</p>
                   <p className="thread-meta">{(proposal.attendees ?? []).map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />)}</p>
                 </>}
-                {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {capitalize(longDate(proposal.due_date))}</span>}</p>}
+                {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {longDate(proposal.due_date)}</span>}</p>}
+                {kind === 'meal' && proposal.day && <p className="row-meta"><span>{capitalize(longDate(proposal.day))} · {proposal.slot === 'lunch' ? 'midi' : 'soir'}</span><span>{plural(proposal.servings ?? 4, 'personne')}</span></p>}
                 {kind === 'item' && <p className="row-meta">{proposal.quantity && <strong>{proposal.quantity}</strong>}<span>{proposal.category}</span></p>}
                 {doneOf(proposal) ? <p className="proposal-done"><Icon name="check" />{verbs[kind].done}</p>
                   : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />{verbs[kind].action}</button>}

@@ -13,11 +13,13 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences
 from .family_auth import member
+from .meals import MealInput
 from .store import database
 
 router = APIRouter(prefix="/api/family/assistant")
-PROPOSAL = re.compile(r"```karl-(event|task|item|memory)\s*\n(.*?)```", re.S)
-MAX_PROPOSALS = 5
+PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal)\s*\n(.*?)```", re.S)
+# Enough for a week of dinners in one reply.
+MAX_PROPOSALS = 10
 MAX_MEMORY = 50
 WEEKDAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 locks: dict[str, asyncio.Lock] = {}
@@ -92,7 +94,7 @@ async def complete(messages):
 RULES = [
     "Ce que tu peux faire seul : répondre, expliquer, organiser, suggérer.",
     "Ce qui demande toujours un toucher de confirmation du membre dans KARL : ajouter au planning, créer une tâche,"
-    " ajouter un article aux courses, retenir une information. Tu ne fais que proposer, avec les blocs ci-dessous.",
+    " ajouter un article aux courses, prévoir un repas, retenir une information. Tu ne fais que proposer, avec les blocs ci-dessous.",
     "Ce que tu ne fais jamais : acheter ou commander (y compris sur un drive), envoyer un e-mail ou un message,"
     " supprimer un fichier, un dossier ou une donnée. Si on te le demande, explique que KARL ne te donne pas ce droit"
     " et propose de préparer la liste ou le brouillon à la place.",
@@ -121,6 +123,7 @@ def briefing(db, user):
             f" {'midi' if row['slot'] == 'lunch' else 'soir'} : {row['title']} ({row['servings']} pers.)"
             for row in db.execute("""SELECT day,slot,title,servings FROM family_meals WHERE deleted=0 AND day BETWEEN ? AND ?
                 ORDER BY day,slot DESC LIMIT 30""", (today.isoformat(), (today + timedelta(days=6)).isoformat()))]
+    recipes = [row["title"] for row in db.execute("SELECT title FROM family_recipes WHERE deleted=0 ORDER BY title COLLATE NOCASE LIMIT 60")]
     memory = [f"- {row['text']}" for row in db.execute(
         "SELECT text FROM family_memory WHERE member_id=? ORDER BY created_at LIMIT ?", (user["id"], MAX_MEMORY))]
     return "\n".join([
@@ -134,12 +137,13 @@ def briefing(db, user):
         f"Tâches à faire attribuées à {user['name']} :",
         *(tasks or ["- aucune"]),
         "Liste de courses partagée (articles restant à prendre) : " + (", ".join(items) if items else "vide") + ".",
+        "Recettes du carnet familial : " + (", ".join(recipes) if recipes else "aucune pour l’instant") + ".",
         "Menu des sept prochains jours :",
         *(menu or ["- aucun repas prévu"]),
         "Réponds en français, simplement. Ne parle jamais des conversations d’autres membres.",
         "Quand c’est utile, fais une suggestion concrète (tâche en retard, journée chargée, courses pour le menu).",
         *RULES,
-        "Pour proposer une action, termine ta réponse par un ou plusieurs blocs (cinq au plus) :",
+        "Pour proposer une action, termine ta réponse par un ou plusieurs blocs (dix au plus) :",
         "```karl-event",
         '{"title": "Piscine", "starts_at": "2026-10-21T17:00:00+02:00", "ends_at": "2026-10-21T18:00:00+02:00", "location": "", "attendees": ["'
         + user["name"] + '"]}',
@@ -150,9 +154,14 @@ def briefing(db, user):
         "```karl-item",
         '{"name": "Lait", "quantity": "2 bouteilles", "category": "Frais"}',
         "```",
+        "```karl-meal",
+        '{"day": "2026-10-22", "slot": "soir", "title": "Crêpes", "servings": 4}',
+        "```",
         "```karl-memory",
         '{"text": "Préfère les rappels le matin"}',
         "```",
+        "Pour un repas, slot vaut midi ou soir ; reprends le titre exact d’une recette du carnet quand il y en a une,"
+        " sinon KARL l’ajoute comme plat sans recette.",
         "Dates ISO avec fuseau. Rayons possibles : Fruits et légumes, Frais, Épicerie, Maison, Autres.",
         "Ne propose de retenir une information que si le membre le demande ou qu’elle est clairement durable.",
     ])
@@ -177,6 +186,12 @@ def proposal(kind, raw, user, names):
     if kind == "item":
         item = ItemInput(name=raw.get("name", ""), quantity=raw.get("quantity") or "", category=raw.get("category") or "Autres")
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
+    if kind == "meal":
+        slot = {"midi": "lunch", "soir": "dinner"}.get(str(raw.get("slot", "soir")).casefold(), raw.get("slot"))
+        meal = MealInput(day=raw.get("day"), slot=slot, title=raw.get("title") or "", servings=raw.get("servings") or 4)
+        if not meal.title.strip():
+            raise ValueError("no dish")
+        return {"kind": "meal", "title": meal.title.strip(), "day": meal.day.isoformat(), "slot": meal.slot, "servings": meal.servings, "ref": None}
     text = raw.get("text")
     if not isinstance(text, str) or not text.strip() or len(text) > 300:
         raise ValueError("bad memory")
@@ -307,7 +322,7 @@ def accept(message_id: int, body: Confirm, user=Depends(allowed)):
         done = chosen.get("event_id") if kind == "event" else chosen.get("ref")
         if done:
             return {"id": done}
-        made = {"event": make_event, "task": make_task, "item": make_item, "memory": make_memory}[kind](db, chosen, user)
+        made = {"event": make_event, "task": make_task, "item": make_item, "memory": make_memory, "meal": make_meal}[kind](db, chosen, user)
         chosen["event_id" if kind == "event" else "ref"] = made
         db.execute("UPDATE family_thread_messages SET proposals=? WHERE id=?", (json.dumps(found), message_id))
     return {"id": made}
@@ -346,6 +361,17 @@ def make_item(db, proposal, user):
     db.execute("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
                (item_id, proposal["title"], proposal["quantity"], proposal["category"], user["id"], now()))
     return item_id
+
+
+def make_meal(db, proposal, user):
+    recipe = db.execute("SELECT id,title FROM family_recipes WHERE deleted=0 AND title=? COLLATE NOCASE LIMIT 1", (proposal["title"],)).fetchone()
+    if db.execute("SELECT COUNT(*) FROM family_meals WHERE deleted=0 AND day=?", (proposal["day"],)).fetchone()[0] >= 12:
+        raise HTTPException(409, "Ce jour compte déjà beaucoup de repas. Retirez-en un.")
+    meal_id = str(uuid4())
+    db.execute("INSERT INTO family_meals(id,day,slot,recipe_id,title,servings,created_by) VALUES(?,?,?,?,?,?,?)",
+               (meal_id, proposal["day"], proposal["slot"], recipe["id"] if recipe else None, recipe["title"] if recipe else proposal["title"],
+                proposal["servings"], user["id"]))
+    return meal_id
 
 
 def make_memory(db, proposal, user):

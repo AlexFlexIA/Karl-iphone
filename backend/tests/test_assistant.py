@@ -192,5 +192,23 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual([row['text'] for row in self.client.get('/api/family/assistant/memory').json()['memory']], ['Couche-tôt'])
 
 
+    def test_meal_proposals_link_to_family_recipes_once_confirmed(self):
+        self.client.post('/api/family/recipes', headers=self.headers, json={'title': 'Crêpes', 'ingredients': ['4 oeufs']}).raise_for_status()
+        text = ('Menu :\n```karl-meal\n{"day": "2026-11-02", "slot": "soir", "title": "crêpes", "servings": 5}\n```'
+                '\n```karl-meal\n{"day": "2026-11-03", "slot": "midi", "title": "Salade"}\n```'
+                '\n```karl-meal\n{"day": "pas une date", "title": "X"}\n```')
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)) as complete:
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertIn('Recettes du carnet familial : Crêpes.', complete.call_args.args[0][0]['content'])
+        self.assertEqual([(p['kind'], p['slot']) for p in reply['proposals']], [('meal', 'dinner'), ('meal', 'lunch')])
+        week = lambda: self.client.get('/api/family/meals?first=2026-11-02&last=2026-11-08').json()['meals']
+        self.assertEqual(week(), [])
+        path = f"/api/family/assistant/messages/{reply['id']}/accept"
+        for index in (0, 1, 0):
+            self.assertEqual(self.client.post(path, headers=self.headers, json={'index': index}).status_code, 201)
+        self.assertEqual(sorted((m['day'], m['title'], m['servings'], m['has_recipe']) for m in week()),
+                         [('2026-11-02', 'Crêpes', 5, True), ('2026-11-03', 'Salade', 4, False)])
+
+
 if __name__ == '__main__':
     unittest.main()

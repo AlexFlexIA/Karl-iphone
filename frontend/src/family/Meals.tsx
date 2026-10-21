@@ -52,13 +52,14 @@ export function Meals({ ctx }: { ctx: Ctx }) {
       <p aria-live="polite">Menu du {shortDate(first)}</p>
       <button className="icon-btn" aria-label="Semaine suivante" onClick={() => shift(1)}><Icon name="chevron" /></button>
     </div>
-    {problem && <p className="banner banner-error" role="alert"><Icon name="alert" /><span>{problem}</span></p>}
+    {problem && <div className="banner banner-error" role="alert"><Icon name="alert" /><span>{problem}</span>
+      <button className="btn btn-secondary btn-small" disabled={!ctx.online} onClick={() => void load()}>Réessayer</button></div>}
     <div className="meals-actions">
       <button className="btn btn-gold" disabled={ctx.disabled || !withRecipe} onClick={() => setOpen({ kind: 'shopping' })}><Icon name="cart" />Courses du menu</button>
       <button className="btn btn-secondary" disabled={ctx.disabled || !meals} onClick={() => void copyLastWeek()}><Icon name="copy" />Reprendre la semaine précédente</button>
       {meals && !withRecipe && <p className="muted">Planifiez un repas avec une recette pour calculer les courses.</p>}
     </div>
-    {!meals ? <Skeleton lines={5} /> : <ol className="menu" aria-label={`Menu de la semaine du ${shortDate(first)}`}>
+    {!meals ? (problem ? null : <Skeleton lines={5} />) : <ol className="menu" aria-label={`Menu de la semaine du ${shortDate(first)}`}>
       {days.map(day => <li key={day} className="menu-day">
         <h3 className={day === ctx.today ? 'is-today' : ''}>{capitalize(longDate(day))}{day === ctx.today && <span className="tag tag-strong">Aujourd’hui</span>}</h3>
         {slots.map(([slot, name]) => {
@@ -91,7 +92,7 @@ export function Meals({ ctx }: { ctx: Ctx }) {
       </div>
       {recipes && recipes.length > 6 && <div className="field recipe-search"><label htmlFor="recipe-search" className="sr-only">Chercher une recette</label>
         <input id="recipe-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Chercher une recette ou un ingrédient…" autoComplete="off" /></div>}
-      {!recipes ? <Skeleton lines={2} /> : !recipes.length ? <Empty title="Aucune recette pour l’instant.">Ajoutez vos plats habituels avec leurs ingrédients : KARL calculera les courses selon le nombre de personnes.</Empty>
+      {!recipes ? (problem ? null : <Skeleton lines={2} />) : !recipes.length ? <Empty title="Aucune recette pour l’instant.">Ajoutez vos plats habituels avec leurs ingrédients : KARL calculera les courses selon le nombre de personnes.</Empty>
         : !found(recipes, search).length ? <p className="muted">Aucune recette ne correspond à « {search} ».</p>
         : <ul className="rows">{found(recipes, search).map(recipe => <li className="row" key={recipe.id}>
           <button className="row-main row-open" onClick={() => setOpen({ kind: 'view', recipe })}><span className="row-text"><span className="row-title">{recipe.title}</span>

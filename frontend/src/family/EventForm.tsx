@@ -21,10 +21,11 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
   const [ask, setAsk] = useState(!!event?.ask)
   const creator = event?.created_by ?? ctx.user.id
   const invited = [...new Set([...attendees, driver])].filter(id => id && id !== creator)
-  // A trip over several days keeps its number of days when only the title or the hours change.
+  // The end day is chosen, not guessed: a trip keeps its length, and an overnight activity can become a same-day one.
   const span = start && end ? Math.round((fromKey(dateKey(end)).getTime() - fromKey(dateKey(start)).getTime()) / 86400000) : 0
-  const overnight = to <= from
-  const endDay = span > 0 ? span : overnight ? 1 : 0
+  const [later, setLater] = useState(span)
+  const overnight = later === 0 && to <= from
+  const endDay = overnight ? 1 : later
 
   async function save(submit: FormEvent<HTMLFormElement>) {
     submit.preventDefault()
@@ -38,7 +39,7 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
     }
     if (await ctx.run(async () => {
       await ctx.api(event ? 'family/events/' + event.id : 'family/events', { method: event ? 'PUT' : 'POST', body: JSON.stringify(payload) })
-    }, ask && invited.length ? `Demande envoyée à ${invited.map(id => ctx.find(id)?.name ?? 'un membre').join(', ')}.` : event ? 'Activité modifiée.' : 'Activité ajoutée au planning.')) onDone(date)
+    }, ask && invited.length ? `Demande envoyée à ${invited.map(id => ctx.find(id)?.name ?? 'un membre').join(', ')}.` : event ? 'Activité modifiée.' : 'Activité ajoutée au planning.')) onDone(event?.recurrence === 'weekly' ? day : date)
   }
 
   return <form className="sheet-body" onSubmit={save}>
@@ -51,6 +52,11 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
       <div className="field"><label htmlFor="event-from">Début</label><input id="event-from" type="time" required value={from} onChange={change => setFrom(change.target.value)} /></div>
       <div className="field"><label htmlFor="event-to">Fin</label><input id="event-to" type="time" required value={to} onChange={change => setTo(change.target.value)} aria-describedby={endDay ? 'event-overnight' : undefined} /></div>
     </div>
+    <div className="field field-narrow"><label htmlFor="event-days">Jour de fin</label>
+      <select id="event-days" value={later} onChange={change => setLater(Number(change.target.value))}>
+        <option value={0}>Le même jour{to <= from ? ' (ou le lendemain si la fin précède le début)' : ''}</option>
+        {[1, 2, 3, 4, 5, 6].map(count => <option key={count} value={count}>{count === 1 ? 'Le lendemain' : `${count} jours plus tard`}</option>)}
+      </select></div>
     {endDay > 0 && <p className="note" id="event-overnight"><Icon name="clock" />Se termine {endDay === 1 ? 'le lendemain' : 'le ' + longDate(dateKey(addDays(fromKey(date), endDay)))} à {to}.</p>}
     <fieldset className="chips"><legend>Qui participe ?</legend>
       {ctx.members.map(member => <label className="chip" key={member.id}>

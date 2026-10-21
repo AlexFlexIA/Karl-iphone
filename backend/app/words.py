@@ -8,14 +8,16 @@ def plain(value):
     return " ".join("".join(c for c in value if not unicodedata.combining(c)).replace("’", "'").split())
 
 
+# Accent-free keys merge « Crème » and « creme »; the few products that would then collide with another keep their own key.
+APART = {"pâté": "pate_e", "pâtés": "pate_e"}
+
+
 def key_of(name):
-    """Singular, accent-free form so « Tomates » and « tomate » end up on one line. A final « é » is kept apart,
-    so « pâté » never merges with « pâtes », nor « purée » with « pure »."""
+    """Singular, accent-free form so « Tomates » and « tomate » end up on one line (« pâté » stays apart from « pâtes »)."""
     keys = []
     for word in re.split(r"[\s\-]+", name.casefold()):
-        ending = re.search(r"é(?:e)?s?$", word)
-        if ending:
-            keys.append(plain(word[:ending.start()]) + "_e")
+        if word in APART:
+            keys.append(APART[word])
         elif word:
             word = plain(word)
             keys.append(word[:-1] if len(word) > 3 and word[-1] in "sx" else word)

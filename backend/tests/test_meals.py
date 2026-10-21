@@ -308,7 +308,8 @@ class MealTests(unittest.TestCase):
         self.headers['X-CSRF-Token'] = self.parent['csrf']
         self.post('invitations', {'name': 'Jamais venu', 'email': 'ghost@example.test'}).raise_for_status()
         with database() as db, db:
-            db.execute("ALTER TABLE family_members DROP COLUMN joined_at")
+            # A database migrated by an earlier version: the column exists but was filled from sessions only.
+            db.execute("UPDATE family_members SET joined_at=NULL WHERE is_owner=0")
         family_auth.initialize()
         with database() as db:
             joined = {row["name"]: bool(row["joined_at"]) for row in db.execute("SELECT name,joined_at FROM family_members WHERE is_owner=0")}

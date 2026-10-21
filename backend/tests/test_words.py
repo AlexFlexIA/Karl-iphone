@@ -12,7 +12,10 @@ class WordTests(unittest.TestCase):
     def test_a_final_e_acute_keeps_products_apart(self):
         self.assertNotEqual(key_of("Pâté"), key_of("Pâtes"))
         self.assertEqual(key_of("Purée"), key_of("purées"))
-        self.assertEqual(key_of("Café"), key_of("cafés"))
+        self.assertEqual(key_of("Café"), key_of("cafe"))
+        self.assertEqual(key_of("Pâte brisée"), key_of("pate brisee"))
+        self.assertEqual(aisle_of("cafe"), "Épicerie")
+        self.assertEqual(aisle_of("pate brisee"), "Frais")
         self.assertEqual(aisle_of("Café moulu"), "Épicerie")
         self.assertEqual(aisle_of("Purée de tomates"), "Épicerie")
 

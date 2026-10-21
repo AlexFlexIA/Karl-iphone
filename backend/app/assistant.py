@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import re
+from typing import get_args
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
@@ -11,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
 from . import hermes
-from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences, waiting_item
+from .family import CATEGORIES, PARIS, EventInput, ItemInput, TaskInput, now, occurrences, waiting_item
 from .family_auth import member
 from .meals import MealInput, RecipeInput, ingredients_of
 from .store import database
@@ -213,7 +214,7 @@ def proposal(kind, raw, user, names):
         name = raw.get("name", "")
         guess = aisle_of(name) if isinstance(name, str) else "Autres"
         # An aisle KARL does not know (« Epicerie », « Boissons ») falls back to the guess instead of losing the item.
-        category = raw.get("category") if raw.get("category") in ("Autres", "Fruits et légumes", "Frais", "Épicerie", "Maison") else guess
+        category = raw.get("category") if raw.get("category") in get_args(CATEGORIES) else guess
         item = ItemInput(name=name, quantity=raw.get("quantity") or "", category=category)
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
     if kind == "meal":
@@ -285,18 +286,30 @@ def proposals(db, user, reply):
 
 
 def with_blocks(row, names):
-    """Stored replies lost their proposal blocks; they go back to Hermes so it knows what it proposed and what was accepted."""
+    """Stored replies lost their proposal blocks; they go back to Hermes in the very format it is asked to write,
+    with whether each one was accepted, so it knows what it proposed."""
     found = json.loads(row["proposals"] or "[]")
     if not found:
         return row["content"]
     blocks = []
     for item in found:
         kind = item.get("kind", "event")
-        data = {key: value for key, value in item.items() if key not in ("kind", "ref", "event_id", "assignee_id")}
         if kind == "event":
-            data["attendees"] = [names.get(value, "?") for value in item.get("attendees", [])]
-        if item.get("assignee_id"):
-            data["assignee"] = names.get(item["assignee_id"], "?")
+            data = {"title": item["title"], "starts_at": item["starts_at"], "ends_at": item["ends_at"], "location": item.get("location", ""),
+                    "attendees": [names.get(value, "?") for value in item.get("attendees", [])]}
+        elif kind == "task":
+            data = {"title": item["title"], "due_date": item.get("due_date"), "assignee": names.get(item.get("assignee_id"), "toute la famille")}
+            data.update({key: item[key] for key in ("repeat", "remind_at") if item.get(key) and item[key] != "none"})
+        elif kind == "item":
+            data = {"name": item["title"], "quantity": item.get("quantity", ""), "category": item.get("category", "Autres")}
+        elif kind == "meal":
+            data = {"day": item["day"], "slot": "midi" if item.get("slot") == "lunch" else "soir", "title": item["title"],
+                    "servings": item.get("servings", 4)}
+        elif kind == "recipe":
+            data = {"title": item["title"], "servings": item.get("servings", 4), "ingredients": item.get("ingredients", []),
+                    "notes": item.get("notes", "")}
+        else:
+            data = {"text": item["title"]}
         data["accepte"] = bool(item.get("ref") or item.get("event_id"))
         blocks.append(f"```karl-{kind}\n{json.dumps(data, ensure_ascii=False)}\n```")
     return row["content"] + "\n" + "\n".join(blocks)

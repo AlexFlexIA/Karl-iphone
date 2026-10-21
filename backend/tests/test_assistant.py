@@ -313,6 +313,7 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual([(p['title'], p['category']) for p in reply['proposals']], [('Lait', 'Frais'), ('Riz', 'Épicerie')])
 
 
+    @patch.dict(os.environ, {"KARL_ASSISTANT_DAILY_LIMIT": "10"})
     def test_earlier_proposals_go_back_to_hermes_with_their_status(self):
         thread = str(uuid4())
         with patch.object(assistant, 'complete', AsyncMock(return_value=PROPOSAL)):
@@ -325,6 +326,14 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('"title": "Piscine"', previous)
         self.assertIn('"accepte": true', previous)
         self.assertIn('"attendees": ["Parent"]', previous)
+        with patch.object(assistant, 'complete', AsyncMock(return_value='```karl-item\n{"name": "Lait"}\n```\n```karl-memory\n{"text": "Aime le bleu"}\n```')):
+            self.ask(thread, 'Et du lait')
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(thread, 'Merci')
+        replayed = complete.call_args.args[0][-2]['content']
+        self.assertIn('"name": "Lait"', replayed)
+        self.assertIn('"text": "Aime le bleu"', replayed)
+        self.assertIn('"accepte": false', replayed)
 
 
 if __name__ == '__main__':

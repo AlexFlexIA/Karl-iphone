@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../icons'
 import { readDraft, readPreference, writeDraft, writePreference } from './api'
@@ -45,6 +45,7 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   const basket = items.filter(item => item.checked)
   const [editing, setEditing] = useState<Item | null>(null)
   const [cleared, setCleared] = useState<string[]>([])
+  const awake = useWakeLock(() => ctx.notify('Cet appareil refuse de garder l’écran allumé.'))
   async function clearBasket() {
     let ids: string[] = []
     if (await ctx.run(async () => { ids = (await ctx.api('family/items/clear', { method: 'POST' })).ids })) setCleared(ids)
@@ -87,6 +88,8 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
         <ul className="rows">{rows.map(row)}</ul>
       </section> : null
     })}
+    {awake.supported && pending.length > 0 && <label className="key-toggle awake-toggle"><input type="checkbox" className="check" checked={awake.on} onChange={event => awake.set(event.target.checked)} />
+      <span><strong>Garder l’écran allumé</strong><span className="muted">Pratique dans le magasin. Se coupe en quittant la liste.</span></span></label>}
     {pending.length > 0 && <p className="footnote"><button className="btn-quiet" onClick={copyForDrive}><Icon name="copy" />Copier la liste pour le Drive</button><br />
       Le panier E.Leclerc Drive n’est pas encore relié à KARL : rien n’est commandé ni acheté depuis cet écran.</p>}
     {cleared.length > 0 && <div className="banner banner-info" role="status"><Icon name="check" /><span>{plural(cleared.length, 'article')} retiré{cleared.length > 1 ? 's' : ''} de la liste.</span>
@@ -136,4 +139,31 @@ function ItemForm({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: () => v
     </div>
     <div className="sheet-actions"><span /><button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button></div>
   </form>
+}
+
+type Sentinel = { release: () => Promise<void>; addEventListener: (type: 'release', listener: () => void) => void }
+type WakeLockNavigator = Navigator & { wakeLock?: { request: (type: 'screen') => Promise<Sentinel> } }
+
+// Screen wake lock while shopping. The browser drops it when the tab hides, so it is asked again on return.
+function useWakeLock(refused: () => void) {
+  const supported = typeof navigator !== 'undefined' && 'wakeLock' in navigator
+  const [on, setOn] = useState(false)
+  const lock = useRef<Sentinel | null>(null)
+  useEffect(() => {
+    if (!on) return
+    let live = true
+    const take = async () => {
+      if (document.hidden || lock.current) return
+      try {
+        const sentinel = await (navigator as WakeLockNavigator).wakeLock!.request('screen')
+        if (!live) { void sentinel.release(); return }
+        lock.current = sentinel
+        sentinel.addEventListener('release', () => { if (lock.current === sentinel) lock.current = null })
+      } catch { if (live) { setOn(false); refused() } }
+    }
+    void take()
+    document.addEventListener('visibilitychange', take)
+    return () => { live = false; document.removeEventListener('visibilitychange', take); void lock.current?.release(); lock.current = null }
+  }, [on])
+  return { supported, on, set: setOn }
 }

@@ -102,7 +102,8 @@ def parse(raw):
 
 @router.get("/weather")
 async def weather(request: Request, user=Depends(member)):
-    home, (forecast, forecast_status) = await request.app.state.crons.read(), await request.app.state.forecast.read()
+    # The station projection (possibly over SSH) and the forecast are independent: wait for both at once.
+    home, (forecast, forecast_status) = await asyncio.gather(request.app.state.crons.read(), request.app.state.forecast.read())
     now = datetime.now(PARIS)
     station = home.get("weather")
     if station:

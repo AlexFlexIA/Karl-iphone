@@ -16,6 +16,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const { data, user, today } = ctx
   const [installHint, setInstallHint] = useState(false)
   useEffect(() => { setInstallHint(!standalone() && readPreference('install-hint') !== 'hidden') }, [])
+  const sunday = dateKey(addDays(fromKey(today), (7 - fromKey(today).getDay()) % 7))
   // A nudge KARL computes itself: menu ingredients for the coming week that nobody has put on the list yet.
   // Recomputed when the menu or the list changes, and every five minutes for recipe edits and next week's days.
   const menuSignature = [data?.meals.map(meal => meal.id + meal.version).join(), data?.items.map(item => item.id + item.version).join(),
@@ -24,17 +25,17 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const { api } = ctx
   useEffect(() => {
     let live = true
-    api(`family/meals/shopping?first=${today}&last=${dateKey(addDays(fromKey(today), 6))}`)
+    // Same days as the menu screen's « Courses du menu » (this week), so the button leads to what the nudge names.
+    api(`family/meals/shopping?first=${today}&last=${sunday}`)
       .then(result => { if (live) setMissing(result.lines.filter((line: ShoppingLine) => !line.on_list)) }, () => { if (live) setMissing([]) })
     return () => { live = false }
-  }, [api, today, menuSignature])
+  }, [api, today, sunday, menuSignature])
   const events = data?.events.filter(event => onDay(event, today)) ?? []
   const pending = data?.items.filter(item => !item.checked) ?? []
   const mine = data?.tasks.filter(task => !task.done && task.assignee_id === user.id) ?? []
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
   const invites = data?.pending ?? []
   const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
-  const sunday = dateKey(addDays(fromKey(today), (7 - fromKey(today).getDay()) % 7))
   const weekEvents = data?.events.filter(event => eventDay(event) >= today && eventDay(event) <= sunday
     && (event.attendees.includes(user.id) || event.driver_id === user.id)).length ?? 0
   const weekTasks = mine.filter(task => task.due_date && task.due_date >= today && task.due_date <= sunday).length
@@ -71,7 +72,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
     </aside>}
     {missing.length > 0 && <aside className="hint" aria-label="Suggestion">
       <Icon name="cart" />
-      <div><p>{plural(missing.length, 'ingrédient')} du menu des 7 prochains jours {missing.length > 1 ? 'ne sont pas' : 'n’est pas'} sur la liste : {missing.slice(0, 3).map(line => line.name.toLowerCase()).join(', ')}{missing.length > 3 ? '…' : '.'}</p>
+      <div><p>{plural(missing.length, 'ingrédient')} du menu de cette semaine {missing.length > 1 ? 'ne sont pas' : 'n’est pas'} sur la liste : {missing.slice(0, 3).map(line => line.name.toLowerCase()).join(', ')}{missing.length > 3 ? '…' : '.'}</p>
         <button className="btn-quiet" onClick={() => { writePreference('shopping-mode', 'meals'); ctx.go('shopping') }}>Préparer les courses du menu</button></div>
       <span />
     </aside>}

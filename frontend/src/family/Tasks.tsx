@@ -63,7 +63,8 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
     { key: 'all', title: 'Pour toute la famille', rows: open.filter(task => !task.assignee_id && !(parent && task.key_task && task.submitted_by)) },
     ...ctx.members.filter(member => member.id !== ctx.user.id).map(member => ({ key: member.id, title: 'Pour ' + member.name, rows: open.filter(task => task.assignee_id === member.id && !(parent && task.key_task && task.submitted_by)) })),
     // Tasks left to someone whose access was switched off stay visible so they can be given to someone else.
-    { key: 'gone', title: 'Pour un membre sans accès', rows: open.filter(task => task.assignee_id && task.assignee_id !== ctx.user.id && !ctx.members.some(member => member.id === task.assignee_id)) },
+    { key: 'gone', title: 'Pour un membre sans accès', rows: open.filter(task => task.assignee_id && task.assignee_id !== ctx.user.id
+      && !ctx.members.some(member => member.id === task.assignee_id) && !(parent && task.key_task && task.submitted_by)) },
   ].filter(group => group.rows.length)
   const update = (value: string) => { setTitle(value); writeDraft('task', value) }
 

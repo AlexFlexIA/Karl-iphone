@@ -56,7 +56,8 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
     <div className="field field-narrow"><label htmlFor="event-days">Jour de fin</label>
       <select id="event-days" value={later} onChange={change => setLater(Number(change.target.value))}>
         <option value={0}>Le même jour{to <= from ? ' (ou le lendemain si la fin précède le début)' : ''}</option>
-        {[1, 2, 3, 4, 5, 6, 7].map(count => <option key={count} value={count}>{count === 1 ? 'Le lendemain' : `${count} jours plus tard`}</option>)}
+        {/* Seven days is the server's limit: only possible when the end time is not after the start time. */}
+        {[1, 2, 3, 4, 5, 6, ...(to <= from || later === 7 ? [7] : [])].map(count => <option key={count} value={count}>{count === 1 ? 'Le lendemain' : `${count} jours plus tard`}</option>)}
       </select></div>
     {endDay > 0 && <p className="note" id="event-overnight"><Icon name="clock" />Se termine {endDay === 1 ? 'le lendemain' : 'le ' + longDate(dateKey(addDays(fromKey(date), endDay)))} à {to}.</p>}
     <fieldset className="chips"><legend>Qui participe ?</legend>

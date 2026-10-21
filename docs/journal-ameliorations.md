@@ -69,5 +69,14 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Rappel déplacé avec la date de sa tâche ; activité de nuit raccourcie en soirée sans devenir une journée de 27 h ; fin à 7 jours proposée.
 - Couloirs recentrés quand la plage horaire change ; une seule règle pour la semaine de l’Accueil ; totaux du menu recalculés toutes les 5 minutes.
 
+## Cycle 5 — reprise n°2 (avancée à 11 h 20 UTC)
+Cinquième relecture complète de la branche, 10 points, tous traités et testés :
+- Hermes : quantité écrite en chiffre (« 2 ») acceptée ; tâche « toute la famille » possible ; recette retrouvée même avec une majuscule accentuée (« Écrasé »).
+- Recette sans ingrédient comptée comme plat sans recette ; un article coché il y a plus de trois jours ne bloque plus les courses de la semaine.
+- Suggestion de l’Accueil alignée sur la semaine affichée par « Courses du menu ».
+- Fin d’activité à 7 jours proposée seulement quand elle respecte la limite ; tâche clé à valider plus listée deux fois.
+- Discussion Hermes : accès à la base hors de la boucle principale ; vocabulaire des rayons calculé une seule fois.
+- Vérification finale sur base vide : 75 tests serveur, build, parcours navigateur 8/8, axe sans défaut, « Tout accepter » d’Hermes.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

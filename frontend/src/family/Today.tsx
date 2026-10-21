@@ -34,12 +34,14 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const meals = data?.meals.filter(meal => meal.day === today) ?? []
   const menu = ([['lunch', 'Midi'], ['dinner', 'Soir']] as const).map(([slot, name]) => [name, meals.filter(meal => meal.slot === slot).map(meal => meal.title).join(', ')] as const)
     .filter(([, dishes]) => dishes)
+  const dinner = meals.filter(meal => meal.slot === 'dinner').map(meal => meal.title).join(' et ')
   const hour = ctx.now.getHours()
   const greeting = hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour'
   const summary = !data ? 'Lecture de la journée…' : [
     events.length ? plural(events.length, 'activité') : 'aucune activité',
     pending.length ? plural(pending.length, 'course') : 'aucune course',
     mine.length ? plural(mine.length, 'tâche') + ' pour toi' : 'rien pour toi',
+    ...(dinner ? [dinner + ' ce soir'] : []),
   ].join(', ').replace(/^./, letter => letter.toUpperCase()) + '.'
 
   return <div className="today">

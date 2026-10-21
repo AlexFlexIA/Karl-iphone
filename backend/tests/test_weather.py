@@ -69,6 +69,17 @@ class WeatherTests(unittest.TestCase):
             app.state.forecast = weather.Forecast()
             self.assertEqual(self.client.get('/api/family/weather').json()['forecast_status'], 'not_configured')
 
+    def test_yesterdays_forecast_is_refreshed_soon_after_midnight(self):
+        import asyncio, time
+        source = weather.Forecast()
+        today = datetime.now(PARIS).date()
+        source.cached = {"date": (today - timedelta(days=1)).isoformat()}
+        source.attempt_at = time.monotonic() - 120
+        with patch.object(weather, 'fetch', AsyncMock(return_value=forecast(today))) as fetch:
+            data, status = asyncio.run(source.read())
+        fetch.assert_called_once()
+        self.assertEqual((data["date"], status), (today.isoformat(), "connected"))
+
     def test_requires_a_family_session(self):
         self.client.cookies.clear()
         self.assertEqual(self.client.get('/api/family/weather').status_code, 401)

@@ -46,8 +46,10 @@ class Forecast:
         if not place:
             return None, "not_configured"
         async with self.lock:
-            # A failed call is retried after 5 minutes; a good one is kept 30 minutes.
-            if time.monotonic() - self.attempt_at >= (1800 if self.cached else 300):
+            # A failed call is retried after 5 minutes; a good one is kept 30 minutes, but never past midnight.
+            stale = bool(self.cached) and self.cached["date"] != datetime.now(PARIS).date().isoformat()
+            wait = 60 if stale else 1800 if self.cached else 300
+            if time.monotonic() - self.attempt_at >= wait:
                 self.attempt_at = time.monotonic()
                 try:
                     self.cached = parse(await fetch(*place))

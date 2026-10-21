@@ -20,7 +20,7 @@ set -a; . ./.env; set +a
 uvicorn app.main:app --host 127.0.0.1 --port 18000 --no-access-log
 ```
 
-Ouvrir `http://127.0.0.1:18000`. Pour Vite en développement : `npm run dev`, backend sur 8000 et `KARL_PUBLIC_ORIGIN=http://localhost:5173` (utiliser exactement cette adresse). Une seule instance/worker FastAPI. Sauvegarder le fichier SQLite avant une mise à jour.
+Ouvrir `http://127.0.0.1:18000`. Pour Vite en développement : `npm run dev`, backend sur 8000 et `KARL_PUBLIC_ORIGIN=http://localhost:5173` (utiliser exactement cette adresse). Une seule instance/worker FastAPI. Sauvegarder le fichier SQLite avant une mise à jour ; le propriétaire peut aussi télécharger une sauvegarde JSON (espace personnel → historique, route `GET /api/backup`) sans sessions, invitations ni identifiants Google.
 
 ## Espace familial
 

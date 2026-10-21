@@ -65,6 +65,15 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/drive/list", headers=self.headers).json(),
                          {"items": [{"name": "Lait", "quantity": "1 l", "category": "Frais"}]})
 
+    def test_backup_is_owner_only_and_leaves_secrets_out(self):
+        self.assertEqual(self.client.get("/api/backup").status_code, 401)
+        response = self.client.get("/api/backup", headers=self.headers)
+        self.assertIn("attachment", response.headers["content-disposition"])
+        tables = response.json()["tables"]
+        self.assertEqual(len(tables["family_members"]), 1)
+        self.assertNotIn("google_sub", tables["family_members"][0])
+        self.assertFalse({"family_sessions", "family_invites", "family_oauth"} & set(tables))
+
     def test_chat_roundtrip_persists_and_forwards_history(self):
         requests = []
 

@@ -108,4 +108,6 @@ h1,h2,p{overflow-wrap:anywhere}h1{font-weight:600;letter-spacing:-.035em;line-he
   .workspace-bar nav button{flex-direction:column;gap:4px;padding:8px 4px;font-size:.8125rem}
   .new-conversation{align-self:stretch}
 }
+.backup-box{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:2rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.8125rem;line-height:1.8}
+.backup-box p{margin:0;max-width:75ch}
 }

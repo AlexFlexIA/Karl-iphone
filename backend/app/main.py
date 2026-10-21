@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -106,6 +107,22 @@ def drive_list():
         rows = db.execute("""SELECT name,quantity,category FROM family_items WHERE deleted=0 AND checked=0
             ORDER BY category,name COLLATE NOCASE LIMIT 300""").fetchall()
     return {"items": [dict(row) for row in rows]}
+
+
+# Family content only: sessions, invitations and sign-in state are secrets, never exported.
+BACKUP_TABLES = ["family_members", "family_items", "family_events", "family_event_replies", "family_tasks", "family_recipes",
+                 "family_meals", "family_threads", "family_thread_messages", "family_memory", "messages"]
+
+
+@app.get("/api/backup", dependencies=[Depends(authenticate)])
+def backup():
+    with database() as db:
+        data = {table: [dict(row) for row in db.execute(f"SELECT * FROM {table}")] for table in BACKUP_TABLES}
+    for member in data["family_members"]:
+        member.pop("google_sub", None)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
+    return JSONResponse({"exported_at": datetime.now(timezone.utc).isoformat(), "tables": data},
+                        headers={"Content-Disposition": f'attachment; filename="karl-sauvegarde-{stamp}.json"'})
 
 
 @app.get("/api/conversations", dependencies=[Depends(authenticate)])

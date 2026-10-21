@@ -28,14 +28,14 @@ Premier accès : **Espace personnel** → saisir `KARL_ACCESS_TOKEN` → bouton 
 
 Chaque invitation privée expire après 7 jours et ne sert qu’une fois. Son secret reste dans le fragment du lien et n’est pas envoyé dans l’URL au serveur. Une session individuelle dure jusqu’à 30 jours (cookie HttpOnly, Secure en HTTPS, SameSite=Lax, secret haché en base). Les écritures exigent une origine exacte et un jeton CSRF. Désactiver un membre révoque ses sessions/invitations. Les membres peuvent créer des activités, cocher les courses/tâches ; seuls l’auteur et les administrateurs modifient/retirent une activité. Les retraits sont annulables. Les versions détectent les modifications simultanées ; aucune écriture n’est rejouée automatiquement.
 
-Accueil du jour, liste de courses avec quantités/rayons (rayon deviné d’après le nom quand il n’est pas précisé ; un produit encore à prendre n’est jamais ajouté une seconde fois, même écrit au pluriel ou sans accent ; nom, quantité et rayon modifiables ; **Vider le panier** retire d’un coup les articles cochés, annulable ; **Garder l’écran allumé** utilise le verrouillage d’écran du navigateur quand il est disponible), planning hebdomadaire avec participants/accompagnement et répétition à la semaine, tâches attribuées avec échéance. Actualisation toutes les 15 secondes dans l’onglet visible. Le planning est stocké dans KARL ; export `.ics` ponctuel des 9 prochaines semaines. **Aucune synchronisation Google Agenda ni notification automatique dans ce lot.** Hors ligne, aucune écriture ; les données déjà affichées restent seulement en mémoire.
+Accueil du jour, liste de courses avec quantités/rayons (rayon deviné d’après le nom quand il n’est pas précisé ; un produit encore à prendre n’est jamais ajouté une seconde fois, même écrit au pluriel ou sans accent ; nom, quantité et rayon modifiables ; **Vider le panier** retire d’un coup les articles cochés, annulable ; **Garder l’écran allumé** utilise le verrouillage d’écran du navigateur quand il est disponible), planning hebdomadaire avec participants/accompagnement et répétition à la semaine, tâches attribuées avec échéance. Actualisation toutes les 15 secondes dans l’onglet visible. Le planning est stocké dans KARL ; export `.ics` ponctuel des 9 prochaines semaines. **Aucune synchronisation Google Agenda ; aucune notification quand KARL est fermé** (les rappels de tâches ne s’affichent que l’application ouverte). Hors ligne, aucune écriture ; les données déjà affichées restent seulement en mémoire.
 
 ### Interface famille
 
 Direction « Carnet » : papier clair, encre, accent cobalt ; mode sombre automatique selon le réglage de l’appareil. Atkinson Hyperlegible pour le texte, Fraunces pour les titres. Tokens de design en tête de `frontend/src/family/family.css`.
 
-- Onglets en bas sous le pouce (Aujourd’hui, Planning, Courses, Tâches, Moi), barre latérale à partir de 960 px.
-- Aujourd’hui : résumé en une phrase, fil du jour avec la ligne « Maintenant », ajout rapide aux courses, tâches attribuées.
+- Onglets en bas sous le pouce (Aujourd’hui, Planning, Courses avec Liste/Repas, Tâches, Hermes, Moi), barre latérale à partir de 960 px.
+- Aujourd’hui : résumé en une phrase (repas du soir compris), rappels arrivés à leur heure, ingrédients du menu manquants, fil du jour avec la ligne « Maintenant », carte « Ta semaine », menu du jour, ajout rapide aux courses, tâches attribuées.
 - Planning : bande de la semaine, vue Liste ou Couloirs (une ligne par personne ; plein = participe, hachuré + voiture = accompagne).
 - Chaque membre garde un symbole fixe (forme + initiale + couleur, colonne `badge` ajoutée automatiquement au démarrage, sans perte de données) : aucune information ne repose sur la couleur seule.
 - Hors ligne : dernières données affichées en lecture seule, aucune écriture mise en attente. Mise à jour de l’app signalée par un bandeau, saisies en cours conservées dans l’onglet.
@@ -61,9 +61,9 @@ Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre
 
 L’auteur d’une tâche ou un parent peut en modifier le titre, la personne et la date (crayon sur la ligne).
 
-**Rappels** : une tâche datée peut avoir une heure de rappel (colonne `remind_at`, en UTC ; une copie hebdomadaire garde la même heure de Paris, changement d’heure compris). À l’heure dite, la tâche apparaît en tête de l’Accueil de la personne concernée (ou de l’auteur pour une tâche familiale) avec un bandeau ; « Moi → Rappels » active en plus une notification sur l’appareil. Tout cela seulement quand KARL est ouvert : aucun serveur d’envoi n’est ajouté. Hermes peut proposer une heure de rappel (`remind_at`).
-
 Une tâche datée peut être marquée **Chaque semaine** : une fois faite (ou validée pour une tâche clé), KARL crée la même tâche sept jours après sa date, une seule fois. La rouvrir retire cette copie si personne n’y a touché ; retirer une ancienne semaine terminée ne touche pas à la suivante. Colonnes `repeat` et `next_id`, ajoutées automatiquement.
+
+**Rappels** : une tâche datée peut avoir une heure de rappel (colonne `remind_at`, en UTC ; une copie hebdomadaire garde la même heure de Paris, changement d’heure compris). À l’heure dite, la tâche apparaît en tête de l’Accueil de la personne concernée (ou de l’auteur pour une tâche familiale) avec un bandeau ; « Moi → Rappels » active en plus une notification sur l’appareil. Tout cela seulement quand KARL est ouvert : aucun serveur d’envoi n’est ajouté. Hermes peut proposer une heure de rappel (`remind_at`).
 
 ## Météo de la famille
 
@@ -87,7 +87,8 @@ Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversa
 - Chaque proposition peut porter une courte raison (`why`) affichée dessous ; l’écran Hermes détaille ce qu’il voit à chaque message.
 - Contexte envoyé par tour : prénom, date et heure de Paris, prénoms de la famille, agenda du membre sur 14 jours, ses tâches (retards, rappels) et celles de toute la famille (plus les tâches clés à valider pour un parent), liste de courses restante, menu des 7 jours, titres des recettes, informations retenues du membre, 20 derniers messages du fil. Jamais les fils ni la mémoire des autres membres.
 - Planning : Hermes peut seulement **proposer** une activité (bloc `karl-event`) ; KARL la valide et l’enregistre uniquement quand le membre touche « Ajouter au planning » (idempotent).
-- Assistant personnel : Hermes reçoit aussi les tâches ouvertes attribuées au membre, la liste de courses restante, le menu des 7 prochains jours et ce que le membre lui a demandé de retenir (« Moi » → **Hermes et toi** : jusqu’à 50 informations, privées, modifiables et effaçables ; table `family_memory`). Il connaît aussi les titres du carnet de recettes et peut proposer une activité, une tâche (éventuellement hebdomadaire), un article, un repas, une recette pour le carnet ou une information à retenir (blocs `karl-event`, `karl-task`, `karl-item`, `karl-meal`, `karl-recipe`, `karl-memory`, dix au plus par réponse ; un repas reprend la recette du même nom) ; chaque proposition n’est enregistrée qu’après un toucher du membre. Il n’a aucun moyen d’acheter, de commander, d’envoyer un e-mail ou de supprimer un fichier, et sa consigne le lui rappelle.
+- Mémoire : « Moi » → **Hermes et toi** garde jusqu’à 50 informations par membre, privées, modifiables et effaçables (table `family_memory`).
+- Propositions : Hermes peut proposer une activité, une tâche (éventuellement hebdomadaire), un article, un repas, une recette pour le carnet ou une information à retenir (blocs `karl-event`, `karl-task`, `karl-item`, `karl-meal`, `karl-recipe`, `karl-memory`, dix au plus par réponse ; un repas reprend la recette du même nom) ; chaque proposition n’est enregistrée qu’après un toucher du membre (ou **Tout accepter**, un toucher pour toute la réponse). Conversations renommables. Il n’a aucun moyen d’acheter, de commander, d’envoyer un e-mail ou de supprimer un fichier, et sa consigne le lui rappelle.
 - Limite `KARL_ASSISTANT_DAILY_LIMIT` messages par membre et par jour (60 par défaut), une réponse à la fois par membre.
 
 ## Assistant personnel et Hermes
@@ -112,7 +113,9 @@ Sur une instance de test (`KARL_PREVIEW=1`, base séparée), sans toucher à la 
 6. **Hermes** : toucher une idée de demande, envoyer, puis accepter une proposition. Rien n’est créé sans ce toucher.
 7. **Moi → Hermes et toi** : ajouter puis effacer une information retenue ; lire « Ce que Hermes peut faire ».
 8. **Tâches** : une tâche datée « Chaque semaine », la cocher → la suivante apparaît à J+7 ; la décocher → elle disparaît.
-9. Propriétaire, **espace personnel** : nouvelle conversation → **Préparer mon panier Drive avec la liste de la famille** remplit le champ ; relire avant d’envoyer.
+9. **Tâches** : une tâche datée d’aujourd’hui avec un rappel dans une minute → elle apparaît en tête de l’Accueil avec un bandeau (activer « Moi → Rappels » pour la notification).
+10. Propriétaire, **espace personnel** : nouvelle conversation → **Préparer mon panier Drive avec la liste de la famille** remplit le champ ; relire avant d’envoyer. Cocher **Donner à Hermes le contexte de la famille** puis demander « Qu’est-ce qui est prévu cette semaine ? ».
+11. **Historique** de l’espace personnel → **Télécharger une sauvegarde**.
 
 ## Vérifier
 

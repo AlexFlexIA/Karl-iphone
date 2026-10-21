@@ -244,5 +244,21 @@ class MealTests(unittest.TestCase):
         self.assertIn(('2026-10-24', None), rows())
 
 
+    def test_undo_and_untick_never_create_a_second_line_to_buy(self):
+        first = self.post('items', {'name': 'Lait'}).json()['id']
+        patch_item = lambda item_id, body: self.client.patch('/api/family/items/' + item_id, headers=self.headers, json=body)
+        patch_item(first, {'version': 1, 'deleted': True}).raise_for_status()
+        second = self.post('items', {'name': 'lait'}).json()
+        self.assertFalse(second['duplicate'])
+        undo = patch_item(first, {'version': 2, 'deleted': False})
+        self.assertEqual(undo.status_code, 409)
+        self.assertIn('déjà sur la liste', undo.json()['detail'])
+        patch_item(second['id'], {'version': 1, 'checked': True}).raise_for_status()
+        self.post('items', {'name': 'Lait'}).raise_for_status()
+        self.assertEqual(patch_item(second['id'], {'version': 2, 'checked': False}).status_code, 409)
+        waiting = [item['name'] for item in self.client.get('/api/family/items').json()['items'] if not item['checked']]
+        self.assertEqual(waiting, ['Lait'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -114,12 +114,17 @@ def update_item(item_id: str, body: ItemChange, user=Depends(member)):
         name = row["name"] if body.name is None else body.name.strip()
         if not name:
             raise HTTPException(422, "Le nom de l’article ne peut pas être vide.")
-        other = waiting_item(db, name) if body.name is not None and not row["checked"] else None
-        if other and other != item_id:
-            raise HTTPException(409, f"« {name} » est déjà sur la liste.")
+        checked = row["checked"] if body.checked is None else body.checked
+        deleted = row["deleted"] if body.deleted is None else body.deleted
+        # Renaming, unticking or undoing a removal must not leave two lines of the same product still to buy.
+        waiting = not checked and not deleted
+        was_waiting = not row["checked"] and not row["deleted"]
+        if waiting and (not was_waiting or name != row["name"]):
+            other = waiting_item(db, name)
+            if other and other != item_id:
+                raise HTTPException(409, f"« {name} » est déjà sur la liste à prendre.")
         cursor = db.execute("""UPDATE family_items SET checked=?,deleted=?,name=?,quantity=?,category=?,version=version+1,updated_by=?,updated_at=?
-            WHERE id=? AND version=?""", (row["checked"] if body.checked is None else body.checked,
-                                         row["deleted"] if body.deleted is None else body.deleted,
+            WHERE id=? AND version=?""", (checked, deleted,
                                          name, row["quantity"] if body.quantity is None else body.quantity.strip(),
                                          row["category"] if body.category is None else body.category,
                                          user["id"], now(), item_id, body.version))
@@ -147,6 +152,7 @@ def restore_basket(body: Restore, user=Depends(member)):
     with database() as db, db:
         db.executemany("UPDATE family_items SET deleted=0,version=version+1,updated_by=?,updated_at=? WHERE id=? AND deleted=1 AND checked=1",
                        [(user["id"], now(), item_id) for item_id in body.ids])
+    # Restored items come back ticked, in the basket, so they never compete with a line still to buy.
     return {"ok": True}
 
 

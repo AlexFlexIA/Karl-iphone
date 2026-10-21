@@ -154,5 +154,19 @@ class MealTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/family/recipes/nope/shopping?servings=2').status_code, 404)
 
 
+    def test_the_list_refuses_a_second_line_for_the_same_product_and_edits_details(self):
+        first = self.post('items', {'name': 'Tomates', 'quantity': '1 kg'}).json()
+        again = self.post('items', {'name': 'tomate'}).json()
+        self.assertEqual((first['duplicate'], again), (False, {'id': first['id'], 'duplicate': True}))
+        change = lambda body: self.client.patch('/api/family/items/' + first['id'], headers=self.headers, json=body)
+        self.assertEqual(change({'version': 1, 'quantity': '2 kg', 'category': 'Fruits et légumes', 'name': 'Tomates cerises'}).status_code, 200)
+        self.assertEqual(change({'version': 1, 'quantity': '3 kg'}).status_code, 409)
+        self.assertEqual(change({'version': 2, 'name': '  '}).status_code, 422)
+        [item] = self.client.get('/api/family/items').json()['items']
+        self.assertEqual((item['name'], item['quantity'], item['category'], item['version']), ('Tomates cerises', '2 kg', 'Fruits et légumes', 2))
+        change({'version': 2, 'checked': True}).raise_for_status()
+        self.assertFalse(self.post('items', {'name': 'Tomates cerises'}).json()['duplicate'])
+
+
 if __name__ == '__main__':
     unittest.main()

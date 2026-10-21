@@ -2,7 +2,6 @@
 Nothing here talks to a shop: the list is prepared in KARL and stays a list."""
 import json
 import re
-import unicodedata
 from datetime import date, timedelta
 from fractions import Fraction
 from typing import Literal
@@ -12,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from .family import now, required
+from .words import key_of, plain
 from .family_auth import member
 from .store import database
 
@@ -40,16 +40,6 @@ AISLES = {
                 "levure miel moutarde bouillon epice cumin curry paprika thym laurier conserve sauce tomate concentre "
                 "biscuit cereale cafe confiture coco amande noix",
 }
-
-
-def plain(value):
-    value = unicodedata.normalize("NFKD", value.casefold().replace("œ", "oe").replace("æ", "ae"))
-    return " ".join("".join(c for c in value if not unicodedata.combining(c)).replace("’", "'").split())
-
-
-def key_of(name):
-    """Singular, accent-free form so « Tomates » and « tomate » end up on one line."""
-    return " ".join(word[:-1] if len(word) > 3 and word[-1] in "sx" else word for word in re.split(r"[\s\-]+", plain(name)))
 
 
 def aisle_of(name):

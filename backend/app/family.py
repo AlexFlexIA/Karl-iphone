@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .family_auth import Invite, member
 from .store import database
+from .words import key_of
 
 router = APIRouter(prefix="/api/family")
 PARIS = ZoneInfo("Europe/Paris")
@@ -58,6 +59,9 @@ class ItemChange(BaseModel):
     version: int = Field(ge=1)
     checked: bool | None = None
     deleted: bool | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    quantity: str | None = Field(default=None, max_length=60)
+    category: CATEGORIES | None = None
 
 
 @router.get("/items")
@@ -73,11 +77,16 @@ def items(user=Depends(member)):
 def add_item(body: ItemInput, user=Depends(member)):
     item_id = str(uuid4())
     with database() as db, db:
+        # The same product still to buy is not added twice: the existing line is returned instead.
+        key = key_of(body.name)
+        for row in db.execute("SELECT id,name FROM family_items WHERE deleted=0 AND checked=0"):
+            if key_of(row["name"]) == key:
+                return {"id": row["id"], "duplicate": True}
         if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
         db.execute("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
                    (item_id, body.name, body.quantity.strip(), body.category, user["id"], now()))
-    return {"id": item_id}
+    return {"id": item_id, "duplicate": False}
 
 
 @router.patch("/items/{item_id}")
@@ -86,9 +95,14 @@ def update_item(item_id: str, body: ItemChange, user=Depends(member)):
         row = db.execute("SELECT * FROM family_items WHERE id=?", (item_id,)).fetchone()
         if not row:
             raise HTTPException(404, "Article introuvable.")
-        cursor = db.execute("""UPDATE family_items SET checked=?,deleted=?,version=version+1,updated_by=?,updated_at=?
+        name = row["name"] if body.name is None else body.name.strip()
+        if not name:
+            raise HTTPException(422, "Le nom de l’article ne peut pas être vide.")
+        cursor = db.execute("""UPDATE family_items SET checked=?,deleted=?,name=?,quantity=?,category=?,version=version+1,updated_by=?,updated_at=?
             WHERE id=? AND version=?""", (row["checked"] if body.checked is None else body.checked,
                                          row["deleted"] if body.deleted is None else body.deleted,
+                                         name, row["quantity"] if body.quantity is None else body.quantity.strip(),
+                                         row["category"] if body.category is None else body.category,
                                          user["id"], now(), item_id, body.version))
         if cursor.rowcount != 1:
             raise HTTPException(409, "Cet article a changé sur un autre appareil. La liste a été actualisée ; réessayez.")

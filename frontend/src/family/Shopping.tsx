@@ -6,7 +6,7 @@ import type { Ctx } from './context'
 import { categories, plural } from './model'
 import type { Item } from './model'
 import { Meals } from './Meals'
-import { Empty, ScreenHead, Skeleton, useOptimistic } from './ui'
+import { Empty, ScreenHead, Sheet, Skeleton, useOptimistic } from './ui'
 
 export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boolean }) {
   const [name, setName] = useState(() => readDraft('item'))
@@ -18,9 +18,10 @@ export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boole
   async function add(event: FormEvent) {
     event.preventDefault()
     const label = name.trim()
+    let duplicate = false
     if (await ctx.run(async () => {
-      await ctx.api('family/items', { method: 'POST', body: JSON.stringify({ name: label, quantity, category }) })
-    }, `« ${label} » ajouté à la liste.`)) { update(''); setQuantity('') }
+      duplicate = (await ctx.api('family/items', { method: 'POST', body: JSON.stringify({ name: label, quantity, category }) })).duplicate
+    })) { update(''); setQuantity(''); ctx.notify(duplicate ? `« ${label} » est déjà sur la liste : rien n’a été ajouté.` : `« ${label} » ajouté à la liste.`) }
   }
   return <form className="quick-add" onSubmit={add}>
     <label htmlFor={id} className={detailed ? '' : 'sr-only'}>Ajouter un article</label>
@@ -42,7 +43,8 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   const items = ctx.data?.items ?? []
   const pending = items.filter(item => !item.checked)
   const basket = items.filter(item => item.checked)
-  const row = (item: Item) => <ItemRow ctx={ctx} item={item} key={item.id} />
+  const [editing, setEditing] = useState<Item | null>(null)
+  const row = (item: Item) => <ItemRow ctx={ctx} item={item} key={item.id} onEdit={() => setEditing(item)} />
   const [mode, setMode] = useState<'list' | 'meals'>(() => readPreference('shopping-mode') === 'meals' ? 'meals' : 'list')
   const choose = (next: 'list' | 'meals') => { setMode(next); writePreference('shopping-mode', next) }
   // No shop is connected from KARL: the list is copied as text, ready to paste where the order is prepared.
@@ -79,6 +81,9 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
     })}
     {pending.length > 0 && <p className="footnote"><button className="btn-quiet" onClick={copyForDrive}><Icon name="copy" />Copier la liste pour le Drive</button><br />
       Le panier E.Leclerc Drive n’est pas encore relié à KARL : rien n’est commandé ni acheté depuis cet écran.</p>}
+    <Sheet open={!!editing} title="Modifier l’article" onClose={() => setEditing(null)}>
+      {editing && <ItemForm key={editing.id} ctx={ctx} item={editing} onDone={() => setEditing(null)} />}
+    </Sheet>
     {basket.length > 0 && <details className="group done-group" open={!pending.length}>
       <summary className="group-title">Dans le panier<span>{basket.length}</span></summary>
       <ul className="rows">{basket.map(row)}</ul>
@@ -86,7 +91,7 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   </section>
 }
 
-function ItemRow({ ctx, item }: { ctx: Ctx; item: Item }) {
+function ItemRow({ ctx, item, onEdit }: { ctx: Ctx; item: Item; onEdit: () => void }) {
   const [checked, setChecked] = useOptimistic(!!item.checked, value => ctx.run(async () => {
     await ctx.api('family/items/' + item.id, { method: 'PATCH', body: JSON.stringify({ version: item.version, checked: value }) })
   }))
@@ -98,6 +103,25 @@ function ItemRow({ ctx, item }: { ctx: Ctx; item: Item }) {
         <span className="row-meta">{item.quantity && <strong>{item.quantity}</strong>}<span>par {item.author}</span></span>
       </span>
     </label>
+    {!checked && <button className="icon-btn" aria-label={'Modifier ' + item.name} disabled={ctx.disabled} onClick={onEdit}><Icon name="edit" /></button>}
     <button className="icon-btn" aria-label={'Retirer ' + item.name} disabled={ctx.disabled} onClick={() => ctx.remove('items/' + item.id, item.version, item.name)}><Icon name="trash" /></button>
   </li>
+}
+
+function ItemForm({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: () => void }) {
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    if (await ctx.run(async () => {
+      await ctx.api('family/items/' + item.id, { method: 'PATCH', body: JSON.stringify({ version: item.version, name: form.get('name'), quantity: form.get('quantity'), category: form.get('category') }) })
+    }, 'Article modifié.')) onDone()
+  }
+  return <form className="sheet-body" onSubmit={save}>
+    <div className="field"><label htmlFor="edit-item-name">Article</label><input id="edit-item-name" name="name" required maxLength={120} defaultValue={item.name} /></div>
+    <div className="compose-row">
+      <div className="field"><label htmlFor="edit-item-quantity">Quantité</label><input id="edit-item-quantity" name="quantity" maxLength={60} defaultValue={item.quantity} /></div>
+      <div className="field"><label htmlFor="edit-item-category">Rayon</label><select id="edit-item-category" name="category" defaultValue={item.category}>{categories.map(name => <option key={name}>{name}</option>)}</select></div>
+    </div>
+    <div className="sheet-actions"><span /><button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button></div>
+  </form>
 }

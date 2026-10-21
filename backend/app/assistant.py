@@ -114,7 +114,11 @@ def briefing(db, user):
             start, end = (datetime.fromisoformat(event[key]).astimezone(PARIS) for key in ("starts_at", "ends_at"))
             agenda.append(f"- {WEEKDAYS[start.weekday()]} {start:%d/%m %H:%M}–{end:%H:%M} : {event['title']}"
                           + (f" ({event['location']})" if event["location"] else ""))
-    tasks = [f"- {row['title']}" + (f" (pour le {row['due_date']})" if row["due_date"] else "")
+    def due(value):
+        if not value:
+            return ""
+        return " (EN RETARD, prévue le " + value + ")" if value < today.isoformat() else " (aujourd’hui)" if value == today.isoformat() else f" (pour le {value})"
+    tasks = [f"- {row['title']}" + due(row["due_date"])
              for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id=?
                 ORDER BY due_date IS NULL,due_date LIMIT 20""", (user["id"],))]
     items = [row["name"] + (f" ({row['quantity']})" if row["quantity"] else "")

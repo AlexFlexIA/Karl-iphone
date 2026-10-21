@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import os
 import tempfile
 import unittest
@@ -221,6 +222,17 @@ class AssistantTests(unittest.TestCase):
         [recipe] = self.client.get('/api/family/recipes').json()['recipes']
         self.assertEqual((recipe['title'], recipe['servings'], recipe['notes']), ('Velouté', 2, 'Mixer.'))
         self.assertEqual([(i['name'], i['quantity'], i['unit']) for i in recipe['ingredients']], [('carottes', 500.0, 'g'), ('oignon', 1.0, '')])
+
+
+    def test_context_flags_late_and_today_tasks(self):
+        me = self.parent['user']['id']
+        for title, due in [('Payer la cantine', '2020-01-01'), ('Arroser', datetime.now(assistant.PARIS).date().isoformat())]:
+            self.client.post('/api/family/tasks', headers=self.headers, json={'title': title, 'assignee_id': me, 'due_date': due}).raise_for_status()
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(str(uuid4()))
+        context = complete.call_args.args[0][0]['content']
+        self.assertIn('Payer la cantine (EN RETARD, prévue le 2020-01-01)', context)
+        self.assertIn('Arroser (aujourd’hui)', context)
 
 
 if __name__ == '__main__':

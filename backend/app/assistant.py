@@ -46,6 +46,10 @@ def initialize():
                 id TEXT PRIMARY KEY, member_id TEXT NOT NULL REFERENCES family_members(id),
                 text TEXT NOT NULL, created_at TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS family_memory_member ON family_memory(member_id, created_at);
+            -- Counted apart from the threads so that deleting a conversation never gives messages back.
+            CREATE TABLE IF NOT EXISTS family_assistant_usage (
+                member_id TEXT NOT NULL REFERENCES family_members(id), day TEXT NOT NULL, count INTEGER NOT NULL,
+                PRIMARY KEY(member_id, day));
         """)
         # Additive migration: admins can switch the assistant off per member.
         if "assistant" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
@@ -312,9 +316,9 @@ def overview(user=Depends(member)):
 
 
 def used_today(db, user):
-    start = datetime.combine(datetime.now(PARIS).date(), datetime.min.time(), PARIS).astimezone(timezone.utc).isoformat()
-    return db.execute("""SELECT COUNT(*) FROM family_thread_messages m JOIN family_threads t ON t.id=m.thread_id
-        WHERE t.member_id=? AND m.role='user' AND m.created_at>=?""", (user["id"], start)).fetchone()[0]
+    row = db.execute("SELECT count FROM family_assistant_usage WHERE member_id=? AND day=?",
+                     (user["id"], datetime.now(PARIS).date().isoformat())).fetchone()
+    return row["count"] if row else 0
 
 
 @router.get("/threads/{thread_id}")
@@ -388,6 +392,8 @@ async def chat(body: Ask, user=Depends(allowed)):
                 ON CONFLICT(id) DO UPDATE SET updated_at=excluded.updated_at""", (str(body.thread_id), user["id"], message[:80], stamp))
             db.execute("INSERT INTO family_thread_messages(thread_id,role,content,created_at) VALUES(?,?,?,?)",
                        (str(body.thread_id), "user", message, stamp))
+            db.execute("""INSERT INTO family_assistant_usage(member_id,day,count) VALUES(?,?,1)
+                ON CONFLICT(member_id,day) DO UPDATE SET count=count+1""", (user["id"], datetime.now(PARIS).date().isoformat()))
             cursor = db.execute("INSERT INTO family_thread_messages(thread_id,role,content,proposals,created_at) VALUES(?,?,?,?,?)",
                                 (str(body.thread_id), "assistant", text, json.dumps(found), stamp))
             row = db.execute("SELECT * FROM family_thread_messages WHERE id=?", (cursor.lastrowid,)).fetchone()

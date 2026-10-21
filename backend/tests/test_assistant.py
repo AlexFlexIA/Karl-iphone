@@ -285,5 +285,14 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(len(why), 200)
 
 
+    def test_deleting_a_conversation_does_not_give_messages_back(self):
+        thread = str(uuid4())
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')):
+            for _ in range(3):
+                self.assertEqual(self.ask(thread).status_code, 200)
+            self.client.delete('/api/family/assistant/threads/' + thread, headers=self.headers).raise_for_status()
+            self.assertEqual(self.ask(str(uuid4())).status_code, 429)
+
+
 if __name__ == '__main__':
     unittest.main()

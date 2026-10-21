@@ -214,6 +214,10 @@ function ShoppingPreview({ ctx, path, target, extra, intro, onDone }: {
   // Focusable so the list scrolls from the keyboard even when every line is already listed and disabled.
   return <div className="sheet-body" tabIndex={0} role="region" aria-label="Ingrédients à ajouter">
     <p className="muted">{intro(without)}</p>
+    {fresh.length > 1 && <div className="preview-toggle">
+      <button type="button" className="btn-quiet" disabled={chosen.size === fresh.length} onClick={() => setChosen(new Set(fresh.map(line => line.key)))}>Tout cocher</button>
+      <button type="button" className="btn-quiet" disabled={!chosen.size} onClick={() => setChosen(new Set())}>Tout décocher</button>
+    </div>}
     {!lines.length ? <Empty title="Aucun ingrédient à prévoir." /> : <ul className="rows">
       {lines.map(line => <li className="row" key={line.key}>
         <label className="row-main">

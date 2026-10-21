@@ -534,3 +534,4 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .recipe-search{margin:var(--s3) 0}
 .basket-clear{margin-top:var(--s3)}
 .planning-meals{display:flex;align-items:flex-start;gap:var(--s2);margin-top:var(--s4);padding:var(--s3) 0;border-top:1px solid var(--line);font-size:var(--text-s);overflow-wrap:anywhere}
+.preview-toggle{display:flex;flex-wrap:wrap;gap:var(--s4)}

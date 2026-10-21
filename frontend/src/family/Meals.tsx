@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../icons'
 import type { Ctx } from './context'
@@ -26,12 +26,16 @@ export function Meals({ ctx }: { ctx: Ctx }) {
   const days = Array.from({ length: 7 }, (_, index) => dateKey(addDays(week, index)))
   const first = days[0], last = days[6]
   const { api } = ctx
+  // A slow answer for a week already left behind must not overwrite the week on screen.
+  const shown = useRef(first)
+  shown.current = first
 
   const load = useCallback(async () => {
     try {
       const [planned, book] = await Promise.all([api(`family/meals?first=${first}&last=${last}`), api('family/recipes')])
+      if (shown.current !== first) return
       setMeals(planned.meals); setRecipes(book.recipes); setProblem('')
-    } catch (e) { setProblem(e instanceof Error ? e.message : 'Menu indisponible.') }
+    } catch (e) { if (shown.current === first) setProblem(e instanceof Error ? e.message : 'Menu indisponible.') }
   }, [api, first, last])
   // Follows the app's refresh cycle, so undo, other devices and the 15 s poll all show up here.
   useEffect(() => { void load() }, [load, ctx.data?.at])

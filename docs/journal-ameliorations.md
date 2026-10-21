@@ -41,5 +41,13 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Défauts antérieurs : météo « indisponible » jusqu’à 30 min après minuit ; activité de nuit absente le lendemain matin ; activité impossible à modifier si un membre a été désactivé.
 - Un seul appel Hermes partagé entre profils ; propositions de tâches revérifiées à l’acceptation.
 
+### Deuxième relecture complète (10 points, tous traités)
+- Sauvegarde du propriétaire : les fils et mémoires Hermes privés des membres en sont exclus.
+- Un administrateur ne peut plus se créer un lien vers le compte d’un membre déjà inscrit (réservé au propriétaire).
+- Activités de plusieurs jours conservées à la modification ; activité de nuit visible sur l’Accueil du lendemain.
+- Tâches d’un membre désactivé listées et réattribuables ; pas de double copie d’une tâche hebdomadaire.
+- Ajouts simultanés du même article sérialisés ; espace personnel utilisable même si le stockage du navigateur est bloqué.
+- Moins d’appels réseau (carnet de recettes, totaux du menu) ; station et prévision météo chargées en parallèle.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

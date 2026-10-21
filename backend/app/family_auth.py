@@ -84,6 +84,11 @@ def initialize():
             db.execute("ALTER TABLE family_members ADD COLUMN badge INTEGER")
         for row in db.execute("SELECT id FROM family_members WHERE badge IS NULL ORDER BY is_owner DESC,rowid").fetchall():
             db.execute("UPDATE family_members SET badge=? WHERE id=?", (free_badge(db), row["id"]))
+        # Additive migration: when a member first joined, so a new link for them can be reserved to the owner.
+        if "joined_at" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
+            db.execute("ALTER TABLE family_members ADD COLUMN joined_at INTEGER")
+            db.execute("UPDATE family_members SET joined_at=? WHERE id IN (SELECT member_id FROM family_sessions) OR google_sub IS NOT NULL",
+                       (int(time.time()),))
         # Additive migration: an activity can ask its invitees to confirm instead of only informing them.
         if "ask" not in {row[1] for row in db.execute("PRAGMA table_info(family_events)")}:
             db.execute("ALTER TABLE family_events ADD COLUMN ask INTEGER NOT NULL DEFAULT 0")
@@ -209,7 +214,10 @@ def invite(body: Invite, user=Depends(admin)):
             if existing["is_owner"] or not existing["active"]:
                 raise HTTPException(409, "Ce compte ne peut pas recevoir cette invitation.")
             member_id = existing["id"]
-            # Reissuing an invitation never changes an existing member's role.
+            # Reissuing an invitation never changes an existing member's role. A link for someone who already joined
+            # opens their account, private Hermes threads included: only the owner may create it (lost phone).
+            if existing["joined_at"] and not user["is_owner"]:
+                raise HTTPException(403, "Cette personne a déjà rejoint la famille. Seul le propriétaire peut lui créer un nouveau lien.")
         else:
             member_id = str(uuid4())
             db.execute("INSERT INTO family_members(id,name,email,role,badge) VALUES(?,?,?,?,?)",
@@ -233,6 +241,7 @@ def accept(body: Accept, request: Request, response: Response):
         if not row:
             raise HTTPException(401, "Invitation expirée ou déjà utilisée. Demandez un nouveau lien à un parent.")
         db.execute("DELETE FROM family_invites WHERE token_hash=?", (digest(body.token),))
+        db.execute("UPDATE family_members SET joined_at=COALESCE(joined_at,?) WHERE id=?", (int(time.time()), row["member_id"]))
     issue_session(response, row["member_id"])
     return {"ok": True}
 
@@ -327,7 +336,7 @@ async def google_callback(request: Request, state: str = "", code: str = "", err
             user = db.execute("SELECT * FROM family_members WHERE email=? AND active=1", (email,)).fetchone()
             if not user or (user["google_sub"] and user["google_sub"] != claims["sub"]):
                 return RedirectResponse("/?auth_error=not_invited", status_code=303)
-            db.execute("UPDATE family_members SET google_sub=? WHERE id=?", (claims["sub"], user["id"]))
+            db.execute("UPDATE family_members SET google_sub=?,joined_at=COALESCE(joined_at,?) WHERE id=?", (claims["sub"], int(time.time()), user["id"]))
         response = RedirectResponse("/", status_code=303)
         response.delete_cookie(FLOW, path="/api/auth/google")
         issue_session(response, user["id"])

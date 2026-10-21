@@ -272,5 +272,26 @@ class MealTests(unittest.TestCase):
         self.assertEqual(dates.count('2026-11-09'), 1)
 
 
+    def test_only_the_owner_can_send_a_new_link_to_someone_who_already_joined(self):
+        def join(name, email, role):
+            url = self.post('invitations', {'name': name, 'email': email, 'role': role}).json()['url']
+            self.client.post('/api/auth/invitation', headers=self.headers, json={'token': parse_qs(urlsplit(url).fragment)['invitation'][0]}).raise_for_status()
+            session = self.client.get('/api/auth/session').json()
+            return session, self.client.cookies.get('karl_family')
+        owner_cookie = self.parent_cookie
+        join('Ado', 'ado@example.test', 'member')
+        self.client.cookies.clear(); self.client.cookies.set('karl_family', owner_cookie, domain='localhost.local', path='/api')
+        self.headers['X-CSRF-Token'] = self.parent['csrf']
+        coparent, _ = join('Coparent', 'co@example.test', 'admin')
+        self.headers['X-CSRF-Token'] = coparent['csrf']
+        refused = self.post('invitations', {'name': 'Ado', 'email': 'ado@example.test'})
+        self.assertEqual(refused.status_code, 403)
+        self.assertEqual(self.post('invitations', {'name': 'Nouveau', 'email': 'new@example.test'}).status_code, 200)
+        self.assertEqual(self.post('invitations', {'name': 'Nouveau', 'email': 'new@example.test'}).status_code, 200)
+        self.client.cookies.clear(); self.client.cookies.set('karl_family', owner_cookie, domain='localhost.local', path='/api')
+        self.headers['X-CSRF-Token'] = self.parent['csrf']
+        self.assertEqual(self.post('invitations', {'name': 'Ado', 'email': 'ado@example.test'}).status_code, 200)
+
+
 if __name__ == '__main__':
     unittest.main()

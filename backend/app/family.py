@@ -72,6 +72,13 @@ class ItemChange(BaseModel):
     category: CATEGORIES | None = None
 
 
+def waiting_item(db, name):
+    """Id of the unticked item for the same product (« Tomates » = « tomate »), if any."""
+    key = key_of(name)
+    return next((row["id"] for row in db.execute("SELECT id,name FROM family_items WHERE deleted=0 AND checked=0")
+                 if key_of(row["name"]) == key), None)
+
+
 @router.get("/items")
 def items(user=Depends(member)):
     with database() as db:
@@ -86,10 +93,9 @@ def add_item(body: ItemInput, user=Depends(member)):
     item_id = str(uuid4())
     with database() as db, db:
         # The same product still to buy is not added twice: the existing line is returned instead.
-        key = key_of(body.name)
-        for row in db.execute("SELECT id,name FROM family_items WHERE deleted=0 AND checked=0"):
-            if key_of(row["name"]) == key:
-                return {"id": row["id"], "duplicate": True}
+        existing = waiting_item(db, body.name)
+        if existing:
+            return {"id": existing, "duplicate": True}
         if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
         # Without an explicit aisle, the same guess as for menu ingredients files the item.

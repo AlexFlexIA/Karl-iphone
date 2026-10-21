@@ -11,11 +11,11 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
-from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences
+from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences, waiting_item
 from .family_auth import member
 from .meals import MealInput, RecipeInput, ingredients_of
 from .store import database
-from .words import aisle_of, key_of
+from .words import aisle_of
 
 router = APIRouter(prefix="/api/family/assistant")
 PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal|recipe)\s*\n(.*?)```", re.S)
@@ -441,10 +441,9 @@ def make_task(db, proposal, user):
 
 
 def make_item(db, proposal, user):
-    key = key_of(proposal["title"])
-    for row in db.execute("SELECT id,name FROM family_items WHERE deleted=0 AND checked=0"):
-        if key_of(row["name"]) == key:
-            return row["id"]
+    existing = waiting_item(db, proposal["title"])
+    if existing:
+        return existing
     if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] >= 2000:
         raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
     item_id = str(uuid4())

@@ -5,9 +5,10 @@ import { readDraft, writeDraft } from './api'
 import type { Ctx } from './context'
 import type { Task } from './model'
 import { due, plural } from './model'
-import { Badge, Empty, Person, ScreenHead, Skeleton, useOptimistic } from './ui'
+import { Badge, Empty, Person, ScreenHead, Sheet, Skeleton, useOptimistic } from './ui'
 
 export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
+  const [editing, setEditing] = useState(false)
   const parent = ctx.user.role === 'admin'
   const waiting = !!task.key_task && !task.done && !!task.submitted_by
   const [done, setDone] = useOptimistic(!!task.done || waiting, value => ctx.run(async () => {
@@ -38,6 +39,8 @@ export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
       <button className="btn btn-gold btn-small" disabled={ctx.disabled} onClick={() => review('approve')}><Icon name="check" />Valider<span className="sr-only"> « {task.title} »</span></button>
       <button className="btn btn-secondary btn-small" disabled={ctx.disabled} onClick={() => review('reject')}><Icon name="refresh" />À refaire<span className="sr-only"> : « {task.title} »</span></button>
     </span>}
+    {ctx.canManage(task.created_by) && !task.done && <button className="icon-btn" aria-label={'Modifier ' + task.title} disabled={ctx.disabled} onClick={() => setEditing(true)}><Icon name="edit" /></button>}
+    {editing && <Sheet open title="Modifier la tâche" onClose={() => setEditing(false)}><TaskForm ctx={ctx} task={task} onDone={() => setEditing(false)} /></Sheet>}
     {ctx.canManage(task.created_by) && <button className="icon-btn" aria-label={'Retirer ' + task.title} disabled={ctx.disabled} onClick={() => ctx.remove('tasks/' + task.id, task.version, task.title)}><Icon name="trash" /></button>}
   </li>
 }
@@ -93,4 +96,25 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
     {done.length > 0 && <details className="group done-group"><summary className="group-title">Fait<span>{done.length}</span></summary>
       <ul className="rows">{done.map(task => <TaskRow ctx={ctx} task={task} key={task.id} />)}</ul></details>}
   </section>
+}
+
+function TaskForm({ ctx, task, onDone }: { ctx: Ctx; task: Task; onDone: () => void }) {
+  const [assignee, setAssignee] = useState(task.assignee_id ?? '')
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    if (await ctx.run(async () => {
+      await ctx.api('family/tasks/' + task.id, { method: 'PATCH', body: JSON.stringify({ version: task.version, title: form.get('title'), assignee_id: assignee || null, due_date: form.get('due') || null }) })
+    }, 'Tâche modifiée.')) onDone()
+  }
+  return <form className="sheet-body" onSubmit={save}>
+    <div className="field"><label htmlFor="edit-task-title">Tâche</label><input id="edit-task-title" name="title" required maxLength={160} defaultValue={task.title} /></div>
+    <fieldset className="chips"><legend>Pour qui ?</legend>
+      <label className="chip"><input type="radio" name="edit-assignee" checked={assignee === ''} onChange={() => setAssignee('')} /><span className="badge-all" aria-hidden="true" />Tous</label>
+      {ctx.members.map(member => <label className="chip" key={member.id}><input type="radio" name="edit-assignee" checked={assignee === member.id} onChange={() => setAssignee(member.id)} /><Badge member={member} size={22} />{member.name}</label>)}
+    </fieldset>
+    <div className="field"><label htmlFor="edit-task-due">Pour quand ? <span className="optional">{task.repeat === 'weekly' ? 'obligatoire, chaque semaine' : 'facultatif'}</span></label>
+      <input id="edit-task-due" name="due" type="date" defaultValue={task.due_date ?? ''} required={task.repeat === 'weekly'} /></div>
+    <div className="sheet-actions"><span /><button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button></div>
+  </form>
 }

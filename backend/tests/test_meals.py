@@ -184,5 +184,20 @@ class MealTests(unittest.TestCase):
         self.assertEqual(tasks(), [('2026-11-09', 0)])
 
 
+    def test_task_details_can_be_edited_by_author_or_parent_only(self):
+        task = self.post('tasks', {'title': 'Ranger', 'due_date': '2026-11-02'}).json()['id']
+        change = lambda body: self.client.patch('/api/family/tasks/' + task, headers=self.headers, json=body)
+        self.assertEqual(change({'version': 1, 'title': ' '}).status_code, 422)
+        self.assertEqual(change({'version': 1, 'assignee_id': 'nope'}).status_code, 422)
+        self.assertEqual(change({'version': 1, 'title': 'Ranger la chambre', 'assignee_id': None, 'due_date': None}).status_code, 200)
+        [row] = self.client.get('/api/family/tasks').json()['tasks']
+        self.assertEqual((row['title'], row['assignee_id'], row['due_date'], row['done']), ('Ranger la chambre', None, None, 0))
+        url = self.post('invitations', {'name': 'Proche', 'email': 'teen@example.test'}).json()['url']
+        self.client.post('/api/auth/invitation', headers=self.headers, json={'token': parse_qs(urlsplit(url).fragment)['invitation'][0]}).raise_for_status()
+        self.headers['X-CSRF-Token'] = self.client.get('/api/auth/session').json()['csrf']
+        self.assertEqual(change({'version': 2, 'title': 'Autre'}).status_code, 403)
+        self.assertEqual(change({'version': 2, 'done': True}).status_code, 200)
+
+
 if __name__ == '__main__':
     unittest.main()

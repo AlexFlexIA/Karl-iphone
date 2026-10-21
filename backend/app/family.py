@@ -297,6 +297,10 @@ class TaskChange(BaseModel):
     done: bool | None = None
     deleted: bool | None = None
     review: Literal["approve", "reject"] | None = None
+    # Editing: only the fields sent are changed, so null can clear an assignee or a date.
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    assignee_id: str | None = Field(default=None, max_length=80)
+    due_date: date | None = None
 
 
 @router.get("/tasks")
@@ -328,6 +332,16 @@ def update_task(task_id: str, body: TaskChange, user=Depends(member)):
             raise HTTPException(404, "Tâche introuvable.")
         if body.deleted is not None and user["role"] != "admin" and row["created_by"] != user["id"]:
             raise HTTPException(403, "Seul l’auteur ou un parent peut retirer cette tâche.")
+        details = body.model_fields_set & {"title", "assignee_id", "due_date"}
+        if details:
+            if user["role"] != "admin" and row["created_by"] != user["id"]:
+                raise HTTPException(403, "Seul l’auteur ou un parent peut modifier cette tâche.")
+            if "title" in details and not (body.title or "").strip():
+                raise HTTPException(422, "Le titre de la tâche ne peut pas être vide.")
+            if "assignee_id" in details:
+                active_ids(db, [body.assignee_id])
+            if row["repeat"] == "weekly" and "due_date" in details and body.due_date is None:
+                raise HTTPException(422, "Une tâche hebdomadaire a besoin d’une date.")
         parent = user["role"] == "admin"
         state = {key: row[key] for key in ("done", "deleted", "submitted_by", "submitted_at", "validated_by")}
         if body.deleted is not None:
@@ -350,14 +364,17 @@ def update_task(task_id: str, body: TaskChange, user=Depends(member)):
             state.update(done=body.done, validated_by=user["id"] if body.done and row["key_task"] else None)
             if not body.done:
                 state.update(submitted_by=None, submitted_at=None)
-        cursor = db.execute("""UPDATE family_tasks SET done=?,deleted=?,submitted_by=?,submitted_at=?,validated_by=?,version=version+1
-            WHERE id=? AND version=?""", (state["done"], state["deleted"], state["submitted_by"], state["submitted_at"],
-                                          state["validated_by"], task_id, body.version))
+        title = body.title.strip() if "title" in details else row["title"]
+        assignee = body.assignee_id if "assignee_id" in details else row["assignee_id"]
+        when = (body.due_date.isoformat() if body.due_date else None) if "due_date" in details else row["due_date"]
+        cursor = db.execute("""UPDATE family_tasks SET done=?,deleted=?,submitted_by=?,submitted_at=?,validated_by=?,title=?,assignee_id=?,due_date=?,
+            version=version+1 WHERE id=? AND version=?""", (state["done"], state["deleted"], state["submitted_by"], state["submitted_at"],
+                                                         state["validated_by"], title, assignee, when, task_id, body.version))
         if cursor.rowcount != 1:
             raise HTTPException(409, "Cette tâche a changé sur un autre appareil. Actualisez la liste.")
         # Only a change of « done » moves the series: removing an old finished week keeps the next one.
-        if row["repeat"] == "weekly" and row["due_date"] and bool(row["done"]) != bool(state["done"]):
-            recur(db, row, bool(state["done"]))
+        if row["repeat"] == "weekly" and when and bool(row["done"]) != bool(state["done"]):
+            recur(db, db.execute("SELECT * FROM family_tasks WHERE id=?", (task_id,)).fetchone(), bool(state["done"]))
     return {"ok": True}
 
 

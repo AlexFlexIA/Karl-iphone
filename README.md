@@ -57,7 +57,9 @@ Quand une activité concerne d’autres membres (participants ou accompagnateur)
 
 Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre la coche, elle passe « à valider » (colonnes `submitted_by`/`submitted_at`, ajoutées automatiquement) au lieu de « fait » ; un administrateur la **valide** (`validated_by`) ou la renvoie **à refaire**, depuis l’Accueil ou l’écran Tâches. Une tâche clé validée ne peut être rouverte que par un administrateur ; un membre ne peut pas créer de tâche clé.
 
-## Tâches hebdomadaires
+## Tâches hebdomadaires et modifications
+
+L’auteur d’une tâche ou un parent peut en modifier le titre, la personne et la date (crayon sur la ligne).
 
 Une tâche datée peut être marquée **Chaque semaine** : une fois faite (ou validée pour une tâche clé), KARL crée la même tâche sept jours après sa date, une seule fois. La rouvrir retire cette copie si personne n’y a touché ; retirer une ancienne semaine terminée ne touche pas à la suivante. Colonnes `repeat` et `next_id`, ajoutées automatiquement.
 

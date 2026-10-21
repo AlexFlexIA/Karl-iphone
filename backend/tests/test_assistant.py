@@ -234,6 +234,10 @@ class AssistantTests(unittest.TestCase):
         context = complete.call_args.args[0][0]['content']
         self.assertIn('Payer la cantine (EN RETARD, prévue le 2020-01-01)', context)
         self.assertIn('Arroser (aujourd’hui)', context)
+        self.client.post('/api/family/tasks', headers=self.headers, json={'title': 'Vider le lave-vaisselle'}).raise_for_status()
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(str(uuid4()))
+        self.assertIn('Tâches pour toute la famille :\n- Vider le lave-vaisselle', complete.call_args.args[0][0]['content'])
 
 
     def test_hermes_can_propose_a_weekly_task_but_only_with_a_date(self):

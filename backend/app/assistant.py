@@ -124,6 +124,12 @@ def briefing(db, user):
     tasks = [f"- {row['title']}" + due(row["due_date"])
              for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id=?
                 ORDER BY due_date IS NULL,due_date LIMIT 20""", (user["id"],))]
+    shared = [f"- {row['title']}" + due(row["due_date"])
+              for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id IS NULL
+                ORDER BY due_date IS NULL,due_date LIMIT 15""")]
+    review = [f"- {row['title']} (faite par {row['name']})" for row in db.execute(
+        """SELECT t.title,m.name FROM family_tasks t JOIN family_members m ON m.id=t.submitted_by
+            WHERE t.deleted=0 AND t.done=0 AND t.key_task=1 AND t.submitted_by IS NOT NULL LIMIT 15""")] if user["role"] == "admin" else []
     items = [row["name"] + (f" ({row['quantity']})" if row["quantity"] else "")
              for row in db.execute("SELECT name,quantity FROM family_items WHERE deleted=0 AND checked=0 ORDER BY category,name LIMIT 40")]
     menu = [f"- {WEEKDAYS[date.fromisoformat(row['day']).weekday()]} {date.fromisoformat(row['day']):%d/%m}"
@@ -143,6 +149,9 @@ def briefing(db, user):
         *(agenda or ["- rien de prévu"]),
         f"Tâches à faire attribuées à {user['name']} :",
         *(tasks or ["- aucune"]),
+        "Tâches pour toute la famille :",
+        *(shared or ["- aucune"]),
+        *(["Tâches clés qui attendent ta validation de parent :", *review] if review else []),
         "Liste de courses partagée (articles restant à prendre) : " + (", ".join(items) if items else "vide") + ".",
         "Recettes du carnet familial : " + (", ".join(recipes) if recipes else "aucune pour l’instant") + ".",
         "Menu des sept prochains jours :",

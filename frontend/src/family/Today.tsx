@@ -31,6 +31,14 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
   const invites = data?.pending ?? []
   const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
+  const sunday = dateKey(addDays(fromKey(today), (7 - fromKey(today).getDay()) % 7))
+  const weekEvents = data?.events.filter(event => eventDay(event) >= today && eventDay(event) <= sunday
+    && (event.attendees.includes(user.id) || event.driver_id === user.id)).length ?? 0
+  const weekTasks = mine.filter(task => task.due_date && task.due_date >= today && task.due_date <= sunday).length
+  const lateTasks = mine.filter(task => task.due_date && task.due_date < today).length
+  const freeEvenings = Array.from({ length: 7 }, (_, index) => dateKey(addDays(fromKey(today), index))).filter(day => day <= sunday)
+    .filter(day => !data?.meals.some(meal => meal.day === day && meal.slot === 'dinner'))
+    .map(day => fromKey(day).toLocaleDateString('fr-FR', { weekday: 'long' }))
   const ringing = data?.tasks.filter(task => remindsMe(task, user.id) && new Date(task.remind_at!) <= ctx.now) ?? []
   const meals = data?.meals.filter(meal => meal.day === today) ?? []
   const menu = ([['lunch', 'Midi'], ['dinner', 'Soir']] as const).map(([slot, name]) => [name, meals.filter(meal => meal.slot === slot).map(meal => meal.title).join(', ')] as const)
@@ -71,6 +79,14 @@ export function Today({ ctx }: { ctx: Ctx }) {
         {data ? <Thread ctx={ctx} events={events} day={today} /> : <Skeleton />}
       </section>
       <div className="today-side">
+        {data && <section aria-labelledby="today-week" className="week-glance">
+          <div className="section-head"><h2 id="today-week">Ta semaine</h2></div>
+          <ul className="glance">
+            <li><strong>{weekEvents}</strong> {weekEvents > 1 ? 'activités te concernent' : 'activité te concerne'}</li>
+            <li><strong>{weekTasks}</strong> {weekTasks > 1 ? 'tâches à rendre' : 'tâche à rendre'} d’ici dimanche{lateTasks > 0 && <span className="due due-late"> · <Icon name="alert" />{lateTasks} en retard</span>}</li>
+            <li>{freeEvenings.length ? <><strong>{freeEvenings.length}</strong> {freeEvenings.length > 1 ? 'soirs' : 'soir'} sans repas prévu : {freeEvenings.join(', ')} <button className="btn-quiet" onClick={() => { writePreference('shopping-mode', 'meals'); ctx.go('shopping') }}>Prévoir</button></> : 'Tous les soirs ont un repas prévu.'}</li>
+          </ul>
+        </section>}
         <section aria-labelledby="today-menu">
           <div className="section-head"><h2 id="today-menu">Au menu</h2><button className="btn-quiet" onClick={() => { writePreference('shopping-mode', 'meals'); ctx.go('shopping') }}>Menu de la semaine<Icon name="chevron" /></button></div>
           {!data ? <Skeleton lines={1} /> : menu.length ? <ul className="today-menu">{menu.map(([slot, dishes]) => <li key={slot}>

@@ -539,3 +539,5 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .accept-all{margin-top:var(--s3)}
 .reminders{margin:0 0 var(--s6);padding:var(--s3) var(--s4);border:2px solid var(--accent);border-radius:var(--r-m);background:var(--accent-soft)}
 .reminders h2{display:flex;align-items:center;gap:var(--s2);font-size:var(--text-m)}
+.glance{display:flex;flex-direction:column;gap:var(--s2);font-size:var(--text-s)}
+.glance strong{font-size:var(--text-m);font-variant-numeric:tabular-nums}

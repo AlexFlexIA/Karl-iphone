@@ -191,6 +191,7 @@ def briefing(db, user):
         "Une recette : un ingrédient par ligne, quantité puis unité puis produit, comme dans l’exemple.",
         "Pour un repas, slot vaut midi ou soir ; reprends le titre exact d’une recette du carnet quand il y en a une,"
         " sinon KARL l’ajoute comme plat sans recette.",
+        "Chaque bloc peut porter \"why\" : une courte raison (une phrase) affichée sous la proposition.",
         "Dates ISO avec fuseau. Rayons possibles : Fruits et légumes, Frais, Épicerie, Maison, Autres.",
         "Ne propose de retenir une information que si le membre le demande ou qu’elle est clairement durable.",
     ])
@@ -274,7 +275,13 @@ def proposals(db, user, reply):
     found = []
     for kind, block in PROPOSAL.findall(reply)[:MAX_PROPOSALS]:
         try:
-            found.append(proposal(kind, json.loads(block), user, names))
+            raw = json.loads(block)
+            made = proposal(kind, raw, user, names)
+            # An optional one-line reason, shown under the proposal so the member knows why it is suggested.
+            why = raw.get("why") if isinstance(raw, dict) else None
+            if isinstance(why, str) and why.strip():
+                made["why"] = " ".join(why.split())[:200]
+            found.append(made)
         except (ValueError, TypeError, AttributeError, ValidationError, HTTPException):
             continue
     text = PROPOSAL.sub("", reply).strip()

@@ -541,3 +541,6 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .reminders h2{display:flex;align-items:center;gap:var(--s2);font-size:var(--text-m)}
 .glance{display:flex;flex-direction:column;gap:var(--s2);font-size:var(--text-s)}
 .glance strong{font-size:var(--text-m);font-variant-numeric:tabular-nums}
+.proposal-why{font-size:var(--text-s);color:var(--muted);font-style:italic}
+.hermes-sees{margin:0 0 var(--s4)}
+.hermes-sees p{margin-top:var(--s2);max-width:60ch}

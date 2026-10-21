@@ -10,7 +10,7 @@ type Proposal = {
   kind?: 'event' | 'task' | 'item' | 'memory' | 'meal' | 'recipe'; title: string; event_id?: string | null; ref?: string | null
   starts_at?: string; ends_at?: string; location?: string; attendees?: string[]
   due_date?: string | null; assignee_id?: string | null; quantity?: string; category?: string
-  repeat?: 'none' | 'weekly'; remind_at?: string | null; day?: string; slot?: 'lunch' | 'dinner'; servings?: number; ingredients?: string[]; notes?: string
+  repeat?: 'none' | 'weekly'; remind_at?: string | null; why?: string; day?: string; slot?: 'lunch' | 'dinner'; servings?: number; ingredients?: string[]; notes?: string
 }
 // Older replies only carried calendar proposals, without a kind.
 const kindOf = (proposal: Proposal) => proposal.kind ?? 'event'
@@ -121,6 +121,12 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
   const current = overview.threads.find(item => item.id === thread)
   return <section className="assistant">
     <ScreenHead title="Hermes" lede={lede} />
+    <details className="hermes-sees">
+      <summary className="btn-quiet">Ce que Hermes voit à chaque message</summary>
+      <p className="muted">Ton prénom, la date, les prénoms de la famille, ton agenda sur 14 jours, tes tâches et celles de toute la famille,
+        la liste de courses, le menu des 7 jours, les titres des recettes, ce que tu lui as demandé de retenir et les 20 derniers messages de cette conversation.
+        Jamais les conversations des autres membres. Il ne peut que proposer : rien n’est enregistré sans ton toucher.</p>
+    </details>
     <div className="assistant-layout">
       <div className="assistant-threads">
         <button className="btn btn-secondary assistant-new" onClick={startNew}><Icon name="plus" />Nouvelle conversation</button>
@@ -176,6 +182,7 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
                     {proposal.notes && <p className="bubble-text">{proposal.notes}</p>}</details>
                 </>}
                 {kind === 'item' && <p className="row-meta">{proposal.quantity && <strong>{proposal.quantity}</strong>}<span>{proposal.category}</span></p>}
+                {proposal.why && <p className="proposal-why"><span className="sr-only">Pourquoi : </span>{proposal.why}</p>}
                 {doneOf(proposal) ? <p className="proposal-done"><Icon name="check" />{verbs[kind].done}</p>
                   : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />{verbs[kind].action}</button>}
               </div>

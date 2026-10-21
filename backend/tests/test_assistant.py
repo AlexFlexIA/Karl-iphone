@@ -276,5 +276,14 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(self.client.patch(path, headers=self.headers, json={'title': 'Piraté'}).status_code, 404)
 
 
+    def test_a_proposal_can_carry_a_short_reason(self):
+        text = '```karl-item\n' + json.dumps({'name': 'Lait', 'why': '  Le menu de jeudi\n en demande. ' + 'x' * 300}) + '\n```'
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        why = reply['proposals'][0]['why']
+        self.assertTrue(why.startswith('Le menu de jeudi en demande.'))
+        self.assertEqual(len(why), 200)
+
+
 if __name__ == '__main__':
     unittest.main()

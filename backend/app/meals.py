@@ -4,7 +4,7 @@ import json
 import re
 from datetime import date, timedelta
 from fractions import Fraction
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -79,7 +79,7 @@ def label(quantity, unit):
 class RecipeInput(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     servings: int = Field(default=4, ge=1, le=30)
-    ingredients: list[str] = Field(default_factory=list, max_length=60)
+    ingredients: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=60)
     notes: str = Field(default="", max_length=4000)
 
     _title = field_validator("title")(required)

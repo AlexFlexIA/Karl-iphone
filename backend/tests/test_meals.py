@@ -98,6 +98,7 @@ class MealTests(unittest.TestCase):
         response = self.post('recipes', {'title': 'Soupe', 'ingredients': ['1 kg de carottes', '3 g']})
         self.assertEqual(response.status_code, 422)
         self.assertIn('Ingrédient 2', response.json()['detail'])
+        self.assertEqual(self.post('recipes', {'title': 'Long', 'ingredients': ['1 ' + 'x' * 300]}).status_code, 422)
         self.assertEqual(self.post('meals', {'day': '2026-11-02'}).status_code, 422)
         self.assertEqual(self.post('meals', {'day': '2026-11-02', 'recipe_id': 'nope'}).status_code, 422)
         self.assertEqual(self.client.get('/api/family/meals?first=2026-01-01&last=2026-12-31').status_code, 422)

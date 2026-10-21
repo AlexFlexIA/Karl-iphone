@@ -27,6 +27,8 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(parse_line("1,5 l lait")["unit"], "l")
         self.assertEqual(parse_line("2 lardons")["unit"], "")
         self.assertEqual(parse_line("sel")["quantity"], None)
+        self.assertEqual([parse_line(line)["name"] for line in ("du sel", "de la farine", "de l’huile", "des œufs", "d'ail")],
+                         ["sel", "farine", "huile", "œufs", "ail"])
         self.assertIsNone(parse_line("  "))
         with self.assertRaises(ValueError):
             parse_line("200 g")
@@ -291,6 +293,26 @@ class MealTests(unittest.TestCase):
         self.client.cookies.clear(); self.client.cookies.set('karl_family', owner_cookie, domain='localhost.local', path='/api')
         self.headers['X-CSRF-Token'] = self.parent['csrf']
         self.assertEqual(self.post('invitations', {'name': 'Ado', 'email': 'ado@example.test'}).status_code, 200)
+
+
+    def test_backfill_marks_members_who_signed_out_but_left_traces(self):
+        from app import family_auth
+        from app.store import database
+        url = self.post('invitations', {'name': 'Ado', 'email': 'ado@example.test'}).json()['url']
+        self.client.post('/api/auth/invitation', headers=self.headers, json={'token': parse_qs(urlsplit(url).fragment)['invitation'][0]}).raise_for_status()
+        self.headers['X-CSRF-Token'] = self.client.get('/api/auth/session').json()['csrf']
+        self.post('items', {'name': 'Chips'}).raise_for_status()
+        self.client.post('/api/auth/logout', headers=self.headers).raise_for_status()
+        self.client.cookies.clear()
+        self.client.cookies.set('karl_family', self.parent_cookie, domain='localhost.local', path='/api')
+        self.headers['X-CSRF-Token'] = self.parent['csrf']
+        self.post('invitations', {'name': 'Jamais venu', 'email': 'ghost@example.test'}).raise_for_status()
+        with database() as db, db:
+            db.execute("ALTER TABLE family_members DROP COLUMN joined_at")
+        family_auth.initialize()
+        with database() as db:
+            joined = {row["name"]: bool(row["joined_at"]) for row in db.execute("SELECT name,joined_at FROM family_members WHERE is_owner=0")}
+        self.assertEqual(joined, {'Ado': True, 'Jamais venu': False})
 
 
 if __name__ == '__main__':

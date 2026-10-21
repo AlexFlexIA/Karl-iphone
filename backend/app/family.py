@@ -110,6 +110,8 @@ def add_item(body: ItemInput, user=Depends(member)):
 @router.patch("/items/{item_id}")
 def update_item(item_id: str, body: ItemChange, user=Depends(member)):
     with database() as db, db:
+        # Same lock as add_item: an untick or undo cannot race a new line for the same product.
+        db.execute("BEGIN IMMEDIATE")
         row = db.execute("SELECT * FROM family_items WHERE id=?", (item_id,)).fetchone()
         if not row:
             raise HTTPException(404, "Article introuvable.")

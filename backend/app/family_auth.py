@@ -87,7 +87,16 @@ def initialize():
         # Additive migration: when a member first joined, so a new link for them can be reserved to the owner.
         if "joined_at" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
             db.execute("ALTER TABLE family_members ADD COLUMN joined_at INTEGER")
-            db.execute("UPDATE family_members SET joined_at=? WHERE id IN (SELECT member_id FROM family_sessions) OR google_sub IS NOT NULL",
+            # Anyone who ever signed in left a trace: a session, Google, or something they wrote.
+            traces = [f"SELECT {column} FROM {table}" for table, column in [
+                ("family_sessions", "member_id"), ("family_items", "updated_by"), ("family_events", "created_by"),
+                ("family_tasks", "created_by"), ("family_threads", "member_id"),
+                ("family_memory", "member_id"), ("family_recipes", "created_by"), ("family_meals", "created_by"),
+                ("family_assistant_usage", "member_id")]
+                if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()]
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='family_event_replies'").fetchone():
+                traces.append("SELECT member_id FROM family_event_replies WHERE answered_at IS NOT NULL")
+            db.execute(f"UPDATE family_members SET joined_at=? WHERE google_sub IS NOT NULL OR id IN ({' UNION '.join(traces)})",
                        (int(time.time()),))
         # Additive migration: an activity can ask its invitees to confirm instead of only informing them.
         if "ask" not in {row[1] for row in db.execute("PRAGMA table_info(family_events)")}:

@@ -162,13 +162,13 @@ class AssistantTests(unittest.TestCase):
         with patch.object(assistant, 'complete', AsyncMock(return_value=reply_text)):
             reply = self.ask(str(uuid4())).json()['message']
         self.assertEqual(reply['content'], 'Voilà.')
-        self.assertEqual([proposal['kind'] for proposal in reply['proposals']], ['task', 'item', 'item', 'memory'])
-        self.assertEqual(reply['proposals'][2]['category'], 'Fruits et légumes')
+        self.assertEqual([proposal['kind'] for proposal in reply['proposals']], ['task', 'item', 'item', 'item', 'memory'])
+        self.assertEqual([p['category'] for p in reply['proposals'][1:4]], ['Frais', 'Autres', 'Fruits et légumes'])
         self.assertEqual(reply['proposals'][0]['assignee_id'], session['user']['id'])
         self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'], [])
         self.assertEqual(self.client.get('/api/family/assistant/memory').json()['memory'], [])
         path = f"/api/family/assistant/messages/{reply['id']}/accept"
-        ids = [self.client.post(path, headers=self.headers, json={'index': index}).json()['id'] for index in (0, 1, 3)]
+        ids = [self.client.post(path, headers=self.headers, json={'index': index}).json()['id'] for index in (0, 1, 4)]
         self.assertEqual(self.client.post(path, headers=self.headers, json={'index': 0}).json()['id'], ids[0])
         self.assertEqual([task['title'] for task in self.client.get('/api/family/tasks').json()['tasks']], ['Réviser'])
         self.assertEqual([item['name'] for item in self.client.get('/api/family/items').json()['items']], ['Lait'])
@@ -304,6 +304,13 @@ class AssistantTests(unittest.TestCase):
         response = self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0})
         self.assertEqual(response.status_code, 422)
         self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'], [])
+
+
+    def test_an_unknown_aisle_falls_back_to_the_guess(self):
+        text = '```karl-item\n{"name": "Lait", "category": "Boissons"}\n```\n```karl-item\n{"name": "Riz", "category": "Epicerie"}\n```'
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertEqual([(p['title'], p['category']) for p in reply['proposals']], [('Lait', 'Frais'), ('Riz', 'Épicerie')])
 
 
 if __name__ == '__main__':

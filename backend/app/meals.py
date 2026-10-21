@@ -55,7 +55,7 @@ def parse_line(line):
             if found:
                 unit, rest = canonical, rest[found.end():]
                 break
-    rest = re.sub(r"^(?:de\s+|d['’]\s*|des\s+)", "", rest, flags=re.I).strip()
+    rest = re.sub(r"^(?:de\s+la\s+|de\s+l['’]\s*|du\s+|des\s+|de\s+|d['’]\s*)", "", rest, flags=re.I).strip()
     if not rest or (quantity is not None and quantity <= 0):
         raise ValueError(text)
     return {"line": text[:200], "name": rest[:120], "quantity": None if quantity is None else float(quantity),

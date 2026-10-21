@@ -9,8 +9,17 @@ def plain(value):
 
 
 def key_of(name):
-    """Singular, accent-free form so « Tomates » and « tomate » end up on one line."""
-    return " ".join(word[:-1] if len(word) > 3 and word[-1] in "sx" else word for word in re.split(r"[\s\-]+", plain(name)))
+    """Singular, accent-free form so « Tomates » and « tomate » end up on one line. A final « é » is kept apart,
+    so « pâté » never merges with « pâtes », nor « purée » with « pure »."""
+    keys = []
+    for word in re.split(r"[\s\-]+", name.casefold()):
+        ending = re.search(r"é(?:e)?s?$", word)
+        if ending:
+            keys.append(plain(word[:ending.start()]) + "_e")
+        elif word:
+            word = plain(word)
+            keys.append(word[:-1] if len(word) > 3 and word[-1] in "sx" else word)
+    return " ".join(keys)
 
 
 # A small, editable guess so generated items land in a sensible aisle; anything else goes to « Autres ».
@@ -23,12 +32,12 @@ AISLES = {
     "Maison": "lessive adoucissant eponge savon shampoing dentifrice brosse poubelle essuie papier mouchoir javel nettoyant "
               "pile ampoule couche lingette deodorant",
     "Épicerie": "farine sucre sel poivre huile vinaigre riz pate spaghetti semoule lentille quinoa chocolat "
-                "levure miel moutarde bouillon epice cumin curry paprika thym laurier conserve sauce concentre "
-                "biscuit cereale cafe confiture amande noix",
+                "levure miel moutarde bouillon epice cumin curry paprika thym laurier conserve sauce concentré purée "
+                "biscuit cereale café thé confiture amande noix",
 }
 # Whole phrases win over single words: « pomme de terre » is not a « pomme », « lait de coco » is not « lait ».
 PHRASES = {"pomme de terre": "Fruits et légumes", "lait de coco": "Épicerie", "pois chiche": "Épicerie",
-           "pate feuilletee": "Frais", "pate brisee": "Frais", "gel douche": "Maison", "liquide vaisselle": "Maison",
+           "pâte feuilletée": "Frais", "pâte brisée": "Frais", "gel douche": "Maison", "liquide vaisselle": "Maison",
            "papier toilette": "Maison", "sac poubelle": "Maison"}
 STOPWORDS = {"de", "d'", "du", "des", "la", "le", "les", "a", "au", "aux", "en", "et"}
 

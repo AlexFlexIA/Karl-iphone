@@ -9,6 +9,13 @@ class WordTests(unittest.TestCase):
                               ("Crème fraîche", "creme fraiche"), ("Choux-fleurs", "chou fleur"), ("  Lait   entier ", "lait entier")]:
             self.assertEqual(key_of(first), key_of(second), (first, second))
 
+    def test_a_final_e_acute_keeps_products_apart(self):
+        self.assertNotEqual(key_of("Pâté"), key_of("Pâtes"))
+        self.assertEqual(key_of("Purée"), key_of("purées"))
+        self.assertEqual(key_of("Café"), key_of("cafés"))
+        self.assertEqual(aisle_of("Café moulu"), "Épicerie")
+        self.assertEqual(aisle_of("Purée de tomates"), "Épicerie")
+
     def test_short_words_and_apostrophes_are_kept(self):
         self.assertEqual(key_of("riz"), "riz")
         self.assertEqual(key_of("ail"), "ail")

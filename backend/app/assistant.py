@@ -211,8 +211,10 @@ def proposal(kind, raw, user, names):
                 "remind_at": task.remind_at.astimezone(timezone.utc).isoformat() if task.remind_at else None, "ref": None}
     if kind == "item":
         name = raw.get("name", "")
-        item = ItemInput(name=name, quantity=raw.get("quantity") or "",
-                         category=raw.get("category") or (aisle_of(name) if isinstance(name, str) else "Autres"))
+        guess = aisle_of(name) if isinstance(name, str) else "Autres"
+        # An aisle KARL does not know (« Epicerie », « Boissons ») falls back to the guess instead of losing the item.
+        category = raw.get("category") if raw.get("category") in ("Autres", "Fruits et légumes", "Frais", "Épicerie", "Maison") else guess
+        item = ItemInput(name=name, quantity=raw.get("quantity") or "", category=category)
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
     if kind == "meal":
         slot = {"midi": "lunch", "soir": "dinner"}.get(str(raw.get("slot", "soir")).casefold(), raw.get("slot"))

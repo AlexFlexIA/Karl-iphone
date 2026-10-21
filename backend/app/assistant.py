@@ -284,6 +284,24 @@ def proposals(db, user, reply):
     return text or ("Je te propose ceci :" if found else reply.strip()), found
 
 
+def with_blocks(row, names):
+    """Stored replies lost their proposal blocks; they go back to Hermes so it knows what it proposed and what was accepted."""
+    found = json.loads(row["proposals"] or "[]")
+    if not found:
+        return row["content"]
+    blocks = []
+    for item in found:
+        kind = item.get("kind", "event")
+        data = {key: value for key, value in item.items() if key not in ("kind", "ref", "event_id", "assignee_id")}
+        if kind == "event":
+            data["attendees"] = [names.get(value, "?") for value in item.get("attendees", [])]
+        if item.get("assignee_id"):
+            data["assignee"] = names.get(item["assignee_id"], "?")
+        data["accepte"] = bool(item.get("ref") or item.get("event_id"))
+        blocks.append(f"```karl-{kind}\n{json.dumps(data, ensure_ascii=False)}\n```")
+    return row["content"] + "\n" + "\n".join(blocks)
+
+
 def thread_for(db, thread_id, user):
     row = db.execute("SELECT * FROM family_threads WHERE id=?", (str(thread_id),)).fetchone()
     # Another member's thread is indistinguishable from a missing one.
@@ -368,10 +386,12 @@ async def chat(body: Ask, user=Depends(allowed)):
                 raise HTTPException(409, "Trop de conversations. Supprimez-en quelques-unes.")
             if used_today(db, user) >= daily_limit():
                 raise HTTPException(429, "Limite de messages atteinte pour aujourd’hui. L’assistant revient demain.")
-            history = db.execute("""SELECT role,content FROM family_thread_messages WHERE thread_id=?
+            history = db.execute("""SELECT role,content,proposals FROM family_thread_messages WHERE thread_id=?
                 ORDER BY id DESC LIMIT 20""", (str(body.thread_id),)).fetchall()
             context = briefing(db, user)
-        messages = [{"role": "system", "content": context}, *({"role": row["role"], "content": row["content"]} for row in reversed(history)),
+            names = {row["id"]: row["name"] for row in db.execute("SELECT id,name FROM family_members")}
+        messages = [{"role": "system", "content": context},
+                    *({"role": row["role"], "content": with_blocks(row, names)} for row in reversed(history)),
                     {"role": "user", "content": message}]
         try:
             reply = await complete(messages)

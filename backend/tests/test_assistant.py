@@ -313,5 +313,19 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual([(p['title'], p['category']) for p in reply['proposals']], [('Lait', 'Frais'), ('Riz', 'Épicerie')])
 
 
+    def test_earlier_proposals_go_back_to_hermes_with_their_status(self):
+        thread = str(uuid4())
+        with patch.object(assistant, 'complete', AsyncMock(return_value=PROPOSAL)):
+            reply = self.ask(thread, 'Piscine ?').json()['message']
+        self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0}).raise_for_status()
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(thread, 'Décale-la à 18 h')
+        previous = complete.call_args.args[0][2]['content']
+        self.assertIn('```karl-event', previous)
+        self.assertIn('"title": "Piscine"', previous)
+        self.assertIn('"accepte": true', previous)
+        self.assertIn('"attendees": ["Parent"]', previous)
+
+
 if __name__ == '__main__':
     unittest.main()

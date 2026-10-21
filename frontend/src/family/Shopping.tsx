@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../icons'
-import { readDraft, writeDraft } from './api'
+import { readDraft, readPreference, writeDraft, writePreference } from './api'
 import type { Ctx } from './context'
 import { categories, plural } from './model'
 import type { Item } from './model'
+import { Meals } from './Meals'
 import { Empty, ScreenHead, Skeleton, useOptimistic } from './ui'
 
 export function QuickAdd({ ctx, detailed = false }: { ctx: Ctx; detailed?: boolean }) {
@@ -42,9 +43,31 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   const pending = items.filter(item => !item.checked)
   const basket = items.filter(item => item.checked)
   const row = (item: Item) => <ItemRow ctx={ctx} item={item} key={item.id} />
+  const [mode, setMode] = useState<'list' | 'meals'>(() => readPreference('shopping-mode') === 'meals' ? 'meals' : 'list')
+  const choose = (next: 'list' | 'meals') => { setMode(next); writePreference('shopping-mode', next) }
+  // No shop is connected from KARL: the list is copied as text, ready to paste where the order is prepared.
+  function copyForDrive() {
+    const text = categories.map(category => {
+      const rows = pending.filter(item => item.category === category)
+      return rows.length ? [category, ...rows.map(item => `- ${item.name}${item.quantity ? ' (' + item.quantity + ')' : ''}`)].join('\n') : ''
+    }).filter(Boolean).join('\n\n')
+    void navigator.clipboard.writeText(text).then(() => ctx.notify(`${plural(pending.length, 'article')} copié${pending.length > 1 ? 's' : ''} pour le Drive.`),
+      () => ctx.notify('Copie impossible sur cet appareil.'))
+  }
+
+  const toggle = <div className="seg" role="group" aria-label="Affichage">
+    <button aria-pressed={mode === 'list'} onClick={() => choose('list')}><Icon name="list" />Liste</button>
+    <button aria-pressed={mode === 'meals'} onClick={() => choose('meals')}><Icon name="calendar" />Repas</button>
+  </div>
+  if (mode === 'meals') return <section>
+    <ScreenHead title="Courses" lede="Le menu de la semaine et les recettes qui remplissent la liste." />
+    <div className="planning-bar">{toggle}</div>
+    <Meals ctx={ctx} />
+  </section>
 
   return <section>
     <ScreenHead title="Courses" lede={ctx.data ? `Liste partagée par toute la famille · ${plural(pending.length, 'article')} à prendre.` : 'Chargement…'} />
+    <div className="planning-bar">{toggle}</div>
     <QuickAdd ctx={ctx} detailed />
     {!ctx.data ? <Skeleton lines={4} /> : !items.length && <Empty title="La liste est vide." >Ajoutez le premier article ci-dessus.</Empty>}
     {categories.map((category, index) => {
@@ -54,6 +77,8 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
         <ul className="rows">{rows.map(row)}</ul>
       </section> : null
     })}
+    {pending.length > 0 && <p className="footnote"><button className="btn-quiet" onClick={copyForDrive}><Icon name="copy" />Copier la liste pour le Drive</button><br />
+      Le panier E.Leclerc Drive n’est pas encore relié à KARL : rien n’est commandé ni acheté depuis cet écran.</p>}
     {basket.length > 0 && <details className="group done-group" open={!pending.length}>
       <summary className="group-title">Dans le panier<span>{basket.length}</span></summary>
       <ul className="rows">{basket.map(row)}</ul>

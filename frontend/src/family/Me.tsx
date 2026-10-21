@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../icons'
 import type { Ctx } from './context'
@@ -84,6 +84,8 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
       </form>
     </details>}
 
+    <HermesSettings ctx={ctx} />
+
     <section className="group" aria-labelledby="install-title" id="install">
       <h2 className="group-title" id="install-title">Installer KARL</h2>
       {installPrompt ? <button className="btn btn-secondary" onClick={() => void installPrompt.prompt()}><Icon name="share" />Ajouter à l’écran d’accueil</button>
@@ -97,5 +99,55 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
       <button className="btn btn-secondary" disabled={ctx.disabled} onClick={onSignOut}><Icon name="logout" />Se déconnecter</button>
     </div>
     <p className="footnote">L’espace famille partage uniquement le planning, les courses et les tâches. L’assistant personnel reste privé.</p>
+  </section>
+}
+
+type Memory = { id: string; text: string; created_at: string }
+
+// What Hermes knows about this member, editable by them alone, and the rules it works under.
+function HermesSettings({ ctx }: { ctx: Ctx }) {
+  const [memory, setMemory] = useState<Memory[] | null>(null)
+  const [problem, setProblem] = useState('')
+  const [text, setText] = useState('')
+  const { api } = ctx
+  const load = useCallback(async () => {
+    try { setMemory((await api('family/assistant/memory')).memory); setProblem('') }
+    catch (e) { setProblem(e instanceof Error ? e.message : 'Mémoire indisponible.') }
+  }, [api])
+  useEffect(() => { void load() }, [load])
+
+  async function add(event: FormEvent) {
+    event.preventDefault()
+    if (await ctx.run(async () => { await api('family/assistant/memory', { method: 'POST', body: JSON.stringify({ text }) }) }, 'Hermes retiendra cette information.')) { setText(''); void load() }
+  }
+  async function forget(item: Memory) {
+    if (!confirm(`Hermes doit-il oublier « ${item.text} » ?`)) return
+    if (await ctx.run(async () => { await api('family/assistant/memory/' + item.id, { method: 'DELETE' }) }, 'Information oubliée.')) void load()
+  }
+
+  return <section className="group" aria-labelledby="hermes-title">
+    <h2 className="group-title" id="hermes-title">Hermes et toi<span>{memory?.length ?? ''}</span></h2>
+    <p className="muted">Ce que Hermes retient de toi. Personne d’autre ne le voit ; tu peux tout corriger ou effacer.</p>
+    {problem && <p className="banner banner-error" role="alert"><Icon name="alert" /><span>{problem}</span></p>}
+    {!memory ? null : !memory.length ? <p className="muted">Rien pour l’instant. Ajoute une préférence ci-dessous, ou touche « Retenir » quand Hermes le propose.</p>
+      : <ul className="rows">{memory.map(item => <li className="row" key={item.id}>
+        <span className="row-main"><span className="row-text"><span className="row-title">{item.text}</span></span></span>
+        <button className="icon-btn" aria-label={'Oublier « ' + item.text + ' »'} disabled={ctx.disabled} onClick={() => void forget(item)}><Icon name="trash" /></button>
+      </li>)}</ul>}
+    <form className="quick-add" onSubmit={add}>
+      <label htmlFor="memory-text">Ajouter une information</label>
+      <div className="quick-add-line">
+        <input id="memory-text" value={text} onChange={event => setText(event.target.value)} maxLength={300} placeholder="Rappels plutôt le matin, végétarien le lundi…" autoComplete="off" />
+        <button className="btn btn-secondary" disabled={ctx.disabled || !text.trim()}><Icon name="plus" />Retenir</button>
+      </div>
+    </form>
+    <details className="permissions">
+      <summary className="btn-quiet">Ce que Hermes peut faire</summary>
+      <dl>
+        <dt>Seul</dt><dd>Répondre, expliquer, organiser ta semaine, te suggérer des tâches, des activités ou des courses.</dd>
+        <dt>Avec ton accord, d’un toucher</dt><dd>Ajouter au planning, créer une tâche, ajouter aux courses, retenir une information.</dd>
+        <dt>Jamais</dt><dd>Acheter ou commander, y compris sur le Drive ; envoyer un e-mail ou un message ; supprimer un fichier, un dossier ou une donnée. KARL ne lui donne pas ces droits.</dd>
+      </dl>
+    </details>
   </section>
 }

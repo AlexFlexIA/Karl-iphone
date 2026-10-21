@@ -12,6 +12,11 @@ export type FamilyEvent = {
   ask: number; replies: Record<string, Answer>
 }
 export type Answer = 'pending' | 'yes' | 'no'
+export type Slot = 'lunch' | 'dinner'
+export type Ingredient = { line: string; name: string; quantity: number | null; unit: string; category: string }
+export type Recipe = { id: string; title: string; servings: number; ingredients: Ingredient[]; notes: string; created_by: string; version: number }
+export type Meal = { id: string; day: string; slot: Slot; recipe_id: string | null; title: string; servings: number; created_by: string; version: number; has_recipe: boolean }
+export type ShoppingLine = { key: string; name: string; category: string; quantity: string; sources: string[]; on_list: string | null }
 export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; pending: FamilyEvent[]; at: Date }
 export type View = 'today' | 'planning' | 'shopping' | 'tasks' | 'assistant' | 'me'
 

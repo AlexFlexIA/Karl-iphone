@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from . import hermes
 from .crons import CronSource
-from . import assistant, family_auth, family, weather
+from . import assistant, family_auth, family, meals, weather
 from .store import db_path, database
 
 
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
     app.state.crons = CronSource()
     app.state.forecast = weather.Forecast()
     family_auth.initialize()
+    meals.initialize()
     assistant.initialize()
     yield
 
@@ -48,6 +49,7 @@ def authenticate(credentials: HTTPAuthorizationCredentials | None = Depends(secu
 app = FastAPI(title="KARL", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(family_auth.router)
 app.include_router(family.router)
+app.include_router(meals.router)
 app.include_router(assistant.router)
 app.include_router(weather.router)
 

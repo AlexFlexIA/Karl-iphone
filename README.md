@@ -63,6 +63,12 @@ Carte en tête de l’Accueil, visible par tous les membres : température exté
 
 Prévision : [Open-Meteo](https://open-meteo.com/) (modèle `meteofrance_seamless`, sans clé), en cache 30 minutes. Définir `KARL_WEATHER_LAT`, `KARL_WEATHER_LON` et éventuellement `KARL_WEATHER_PLACE` (libellé affiché). Sans coordonnées, la carte indique « Prévisions à configurer ».
 
+## Repas
+
+Écran **Courses → Repas** : menu de la semaine (midi/soir, nombre de personnes) et carnet de recettes partagé. Une recette s’écrit avec un ingrédient par ligne (« 250 g de farine », « 2 c. à s. d’huile », « sel ») ; KARL reconnaît les unités usuelles et devine le rayon. **Courses du menu** additionne les ingrédients de la semaine en tenant compte des portions (g/kg et ml/cl/l regroupés), puis montre ce qui est déjà coché à prendre sur la liste : ces produits ne sont jamais ajoutés deux fois. Rien n’est ajouté sans validation. Tables `family_recipes` et `family_meals`, créées automatiquement.
+
+**E.Leclerc Drive : non relié.** L’intégration Drive ne se trouve pas dans ce dépôt. En attendant, **Copier la liste pour le Drive** copie la liste restante, classée par rayon. KARL ne passe aucune commande et n’effectue aucun achat.
+
 ## Hermes pour chaque membre
 
 Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversations, illisibles par les autres, propriétaire compris (404 identique à une conversation inexistante). Suppression possible par le membre ; un administrateur peut couper l’assistant d’un membre sans toucher à ses autres accès.
@@ -70,6 +76,7 @@ Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversa
 - Branché sur un **profil Hermes dédié à la famille** (`HERMES_FAMILY_API_URL`, par défaut `http://127.0.0.1:8643/v1`, `HERMES_FAMILY_API_KEY`, `HERMES_FAMILY_MODEL`). Jamais de repli sur le Hermes personnel : sans clé famille, l’onglet affiche « bientôt disponible ». Ce profil doit avoir sa propre mémoire désactivée ou vide et aucun outil terminal/fichiers : KARL fournit le contexte à chaque tour.
 - Contexte envoyé par tour : prénom, date et heure de Paris, prénoms de la famille, agenda du membre sur 14 jours, 20 derniers messages du fil. Rien d’autre de la base.
 - Planning : Hermes peut seulement **proposer** une activité (bloc `karl-event`) ; KARL la valide et l’enregistre uniquement quand le membre touche « Ajouter au planning » (idempotent).
+- Assistant personnel : Hermes reçoit aussi les tâches ouvertes attribuées au membre, la liste de courses restante, le menu des 7 prochains jours et ce que le membre lui a demandé de retenir (« Moi » → **Hermes et toi** : jusqu’à 50 informations, privées, modifiables et effaçables ; table `family_memory`). Il peut proposer une activité, une tâche, un article ou une information à retenir (blocs `karl-event`, `karl-task`, `karl-item`, `karl-memory`) ; chaque proposition n’est enregistrée qu’après un toucher du membre. Il n’a aucun moyen d’acheter, de commander, d’envoyer un e-mail ou de supprimer un fichier, et sa consigne le lui rappelle.
 - Limite `KARL_ASSISTANT_DAILY_LIMIT` messages par membre et par jour (60 par défaut), une réponse à la fois par membre.
 
 ## Assistant personnel et Hermes

@@ -496,3 +496,23 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .block .icon+.icon{margin-left:-2px}
 .legend-waiting{display:inline-grid;place-content:center;outline:2px dashed var(--ink);outline-offset:-2px}
 .legend-waiting .icon{width:12px;height:12px}
+
+/* Repas: one notebook line per day, midi and soir side by side from tablet width. */
+.meals-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);margin-bottom:var(--s4)}
+.menu{border-top:2px solid var(--rule)}
+.menu-day{padding:var(--s3) 0;border-bottom:1px solid var(--line)}
+.menu-day h3{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);font-family:var(--font-display);font-weight:600;font-size:var(--text-m)}
+.menu-day h3.is-today{color:var(--accent)}
+.menu-slot{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:start;gap:0 var(--s2);margin-top:var(--s2)}
+.menu-slot .btn-quiet{grid-column:2;justify-self:start}
+.menu-slot-name{padding-top:var(--s2);font-size:var(--text-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.menu-dishes{display:flex;flex-direction:column}
+.menu-dish{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);min-height:44px}
+.menu-dish > span{display:flex;flex-direction:column;min-width:0}
+.grow{flex:1}
+.field-narrow{flex:0 0 7rem}
+.permissions{margin-top:var(--s4)}
+.permissions dl{display:grid;gap:var(--s1);margin-top:var(--s2);font-size:var(--text-s)}
+.permissions dt{font-weight:700;margin-top:var(--s2)}
+.permissions dd{margin:0;color:var(--muted)}
+@media (min-width:640px){.menu-day{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 var(--s4)}.menu-day h3{grid-column:1/-1}}

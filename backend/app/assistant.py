@@ -4,19 +4,21 @@ import asyncio
 import json
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
-from .family import PARIS, EventInput, now, occurrences
+from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences
 from .family_auth import member
 from .store import database
 
 router = APIRouter(prefix="/api/family/assistant")
-PROPOSAL = re.compile(r"```karl-event\s*\n(.*?)```", re.S)
+PROPOSAL = re.compile(r"```karl-(event|task|item|memory)\s*\n(.*?)```", re.S)
+MAX_PROPOSALS = 5
+MAX_MEMORY = 50
 WEEKDAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 locks: dict[str, asyncio.Lock] = {}
 
@@ -37,6 +39,10 @@ def initialize():
                 created_at TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS family_thread_messages_thread ON family_thread_messages(thread_id, id);
             CREATE INDEX IF NOT EXISTS family_threads_member ON family_threads(member_id, updated_at);
+            CREATE TABLE IF NOT EXISTS family_memory (
+                id TEXT PRIMARY KEY, member_id TEXT NOT NULL REFERENCES family_members(id),
+                text TEXT NOT NULL, created_at TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS family_memory_member ON family_memory(member_id, created_at);
         """)
         # Additive migration: admins can switch the assistant off per member.
         if "assistant" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
@@ -83,49 +89,111 @@ async def complete(messages):
         raise Unavailable("L’assistant n’a pas pu répondre. Réessayez dans un moment.") from exc
 
 
+RULES = [
+    "Ce que tu peux faire seul : répondre, expliquer, organiser, suggérer.",
+    "Ce qui demande toujours un toucher de confirmation du membre dans KARL : ajouter au planning, créer une tâche,"
+    " ajouter un article aux courses, retenir une information. Tu ne fais que proposer, avec les blocs ci-dessous.",
+    "Ce que tu ne fais jamais : acheter ou commander (y compris sur un drive), envoyer un e-mail ou un message,"
+    " supprimer un fichier, un dossier ou une donnée. Si on te le demande, explique que KARL ne te donne pas ce droit"
+    " et propose de préparer la liste ou le brouillon à la place.",
+    "N’invente pas d’accès à un service : tu ne vois que le contexte ci-dessus.",
+]
+
+
 def briefing(db, user):
-    """Context KARL owns and the member may already see: date, family first names, their own agenda."""
+    """Context KARL owns and the member may already see: date, family first names, their own agenda,
+    their tasks, the shared shopping list and menu, and what they asked Hermes to remember."""
     moment = datetime.now(PARIS)
+    today = moment.date()
     names = [row["name"] for row in db.execute("SELECT name FROM family_members WHERE active=1 ORDER BY is_owner DESC,name")]
     agenda = []
-    for event in occurrences(db, moment.date(), moment.date() + timedelta(days=13)):
+    for event in occurrences(db, today, today + timedelta(days=13)):
         if user["id"] in event["attendees"] or event["driver_id"] == user["id"]:
             start, end = (datetime.fromisoformat(event[key]).astimezone(PARIS) for key in ("starts_at", "ends_at"))
             agenda.append(f"- {WEEKDAYS[start.weekday()]} {start:%d/%m %H:%M}–{end:%H:%M} : {event['title']}"
                           + (f" ({event['location']})" if event["location"] else ""))
+    tasks = [f"- {row['title']}" + (f" (pour le {row['due_date']})" if row["due_date"] else "")
+             for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id=?
+                ORDER BY due_date IS NULL,due_date LIMIT 20""", (user["id"],))]
+    items = [row["name"] + (f" ({row['quantity']})" if row["quantity"] else "")
+             for row in db.execute("SELECT name,quantity FROM family_items WHERE deleted=0 AND checked=0 ORDER BY category,name LIMIT 40")]
+    menu = [f"- {WEEKDAYS[date.fromisoformat(row['day']).weekday()]} {date.fromisoformat(row['day']):%d/%m}"
+            f" {'midi' if row['slot'] == 'lunch' else 'soir'} : {row['title']} ({row['servings']} pers.)"
+            for row in db.execute("""SELECT day,slot,title,servings FROM family_meals WHERE deleted=0 AND day BETWEEN ? AND ?
+                ORDER BY day,slot DESC LIMIT 30""", (today.isoformat(), (today + timedelta(days=6)).isoformat()))]
+    memory = [f"- {row['text']}" for row in db.execute(
+        "SELECT text FROM family_memory WHERE member_id=? ORDER BY created_at LIMIT ?", (user["id"], MAX_MEMORY))]
     return "\n".join([
         f"Tu es l’assistant personnel de {user['name']}, dans l’application familiale KARL.",
         f"Nous sommes le {WEEKDAYS[moment.weekday()]} {moment:%d/%m/%Y}, il est {moment:%H:%M} (heure de Paris).",
         "Membres de la famille : " + ", ".join(names) + ".",
+        f"Ce que {user['name']} t’a demandé de retenir (modifiable par lui ou elle dans « Moi ») :",
+        *(memory or ["- rien pour l’instant"]),
         f"Agenda de {user['name']} pour les deux prochaines semaines :",
         *(agenda or ["- rien de prévu"]),
+        f"Tâches à faire attribuées à {user['name']} :",
+        *(tasks or ["- aucune"]),
+        "Liste de courses partagée (articles restant à prendre) : " + (", ".join(items) if items else "vide") + ".",
+        "Menu des sept prochains jours :",
+        *(menu or ["- aucun repas prévu"]),
         "Réponds en français, simplement. Ne parle jamais des conversations d’autres membres.",
-        "Pour proposer d’ajouter une activité au planning familial, termine ta réponse par un bloc :",
+        "Quand c’est utile, fais une suggestion concrète (tâche en retard, journée chargée, courses pour le menu).",
+        *RULES,
+        "Pour proposer une action, termine ta réponse par un ou plusieurs blocs (cinq au plus) :",
         "```karl-event",
         '{"title": "Piscine", "starts_at": "2026-10-21T17:00:00+02:00", "ends_at": "2026-10-21T18:00:00+02:00", "location": "", "attendees": ["'
         + user["name"] + '"]}',
         "```",
-        "Un bloc par activité, trois au plus, dates ISO avec fuseau. KARL demande confirmation avant d’enregistrer ;"
-        " tu n’as aucun autre moyen de modifier le planning.",
+        "```karl-task",
+        '{"title": "Prendre rendez-vous chez le dentiste", "due_date": "2026-10-24", "assignee": "' + user["name"] + '"}',
+        "```",
+        "```karl-item",
+        '{"name": "Lait", "quantity": "2 bouteilles", "category": "Frais"}',
+        "```",
+        "```karl-memory",
+        '{"text": "Préfère les rappels le matin"}',
+        "```",
+        "Dates ISO avec fuseau. Rayons possibles : Fruits et légumes, Frais, Épicerie, Maison, Autres.",
+        "Ne propose de retenir une information que si le membre le demande ou qu’elle est clairement durable.",
     ])
 
 
+def proposal(kind, raw, user, names):
+    """One validated proposal, in the shape the accept step re-validates; raises on anything malformed."""
+    if not isinstance(raw, dict):
+        raise TypeError("not an object")
+    if kind == "event":
+        attendees = [names[name.strip().casefold()] for name in raw.get("attendees") or [] if isinstance(name, str) and name.strip().casefold() in names]
+        event = EventInput(title=raw.get("title", ""), starts_at=raw.get("starts_at"), ends_at=raw.get("ends_at"),
+                           location=raw.get("location") or "", attendees=attendees or [user["id"]])
+        return {"title": event.title, "starts_at": event.starts_at.isoformat(), "ends_at": event.ends_at.isoformat(),
+                "location": event.location.strip(), "attendees": event.attendees, "event_id": None}
+    if kind == "task":
+        assignee = raw.get("assignee")
+        task = TaskInput(title=raw.get("title", ""), due_date=raw.get("due_date") or None,
+                         assignee_id=names.get(assignee.strip().casefold(), user["id"]) if isinstance(assignee, str) else user["id"])
+        return {"kind": "task", "title": task.title, "due_date": task.due_date.isoformat() if task.due_date else None,
+                "assignee_id": task.assignee_id, "ref": None}
+    if kind == "item":
+        item = ItemInput(name=raw.get("name", ""), quantity=raw.get("quantity") or "", category=raw.get("category") or "Autres")
+        return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
+    text = raw.get("text")
+    if not isinstance(text, str) or not text.strip() or len(text) > 300:
+        raise ValueError("bad memory")
+    return {"kind": "memory", "title": text.strip(), "ref": None}
+
+
 def proposals(db, user, reply):
-    """Split validated event proposals out of the reply; anything malformed is dropped."""
+    """Split validated proposals out of the reply; anything malformed is dropped."""
     names = {row["name"].casefold(): row["id"] for row in db.execute("SELECT id,name FROM family_members WHERE active=1")}
     found = []
-    for block in PROPOSAL.findall(reply)[:3]:
+    for kind, block in PROPOSAL.findall(reply)[:MAX_PROPOSALS]:
         try:
-            raw = json.loads(block)
-            attendees = [names[name.strip().casefold()] for name in raw.get("attendees") or [] if isinstance(name, str) and name.strip().casefold() in names]
-            event = EventInput(title=raw.get("title", ""), starts_at=raw.get("starts_at"), ends_at=raw.get("ends_at"),
-                               location=raw.get("location") or "", attendees=attendees or [user["id"]])
+            found.append(proposal(kind, json.loads(block), user, names))
         except (ValueError, TypeError, AttributeError, ValidationError):
             continue
-        found.append({"title": event.title, "starts_at": event.starts_at.isoformat(), "ends_at": event.ends_at.isoformat(),
-                      "location": event.location.strip(), "attendees": event.attendees, "event_id": None})
     text = PROPOSAL.sub("", reply).strip()
-    return text or ("Je propose d’ajouter ceci au planning :" if found else reply.strip()), found
+    return text or ("Je te propose ceci :" if found else reply.strip()), found
 
 
 def thread_for(db, thread_id, user):
@@ -219,12 +287,12 @@ async def chat(body: Ask, user=Depends(allowed)):
 
 
 class Confirm(BaseModel):
-    index: int = Field(ge=0, le=2)
+    index: int = Field(ge=0, lt=MAX_PROPOSALS)
 
 
 @router.post("/messages/{message_id}/accept", status_code=201)
 def accept(message_id: int, body: Confirm, user=Depends(allowed)):
-    """The only path from a reply to the planning: an explicit tap by the member."""
+    """The only path from a reply to the planning, tasks, list or memory: an explicit tap by the member."""
     with database() as db, db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute("""SELECT m.*,t.member_id FROM family_thread_messages m JOIN family_threads t ON t.id=m.thread_id
@@ -234,19 +302,88 @@ def accept(message_id: int, body: Confirm, user=Depends(allowed)):
         found = json.loads(row["proposals"])
         if body.index >= len(found):
             raise HTTPException(404, "Proposition introuvable.")
-        proposal = found[body.index]
-        if proposal["event_id"]:
-            return {"id": proposal["event_id"]}
-        event = EventInput(**{key: proposal[key] for key in ("title", "starts_at", "ends_at", "location", "attendees")})
-        attendees = [value for value in event.attendees
-                     if db.execute("SELECT 1 FROM family_members WHERE id=? AND active=1", (value,)).fetchone()] or [user["id"]]
-        if db.execute("SELECT COUNT(*) FROM family_events WHERE deleted=0").fetchone()[0] >= 2000:
-            raise HTTPException(409, "Le planning est plein. Retirez les anciens événements.")
-        event_id = str(uuid4())
-        db.execute("""INSERT INTO family_events(id,title,starts_at,ends_at,attendees,driver_id,location,recurrence,created_by)
-            VALUES(?,?,?,?,?,NULL,?,'once',?)""", (event_id, event.title, event.starts_at.astimezone(timezone.utc).isoformat(),
-                                                   event.ends_at.astimezone(timezone.utc).isoformat(), json.dumps(attendees),
-                                                   event.location.strip(), user["id"]))
-        proposal["event_id"] = event_id
+        chosen = found[body.index]
+        kind = chosen.get("kind", "event")
+        done = chosen.get("event_id") if kind == "event" else chosen.get("ref")
+        if done:
+            return {"id": done}
+        made = {"event": make_event, "task": make_task, "item": make_item, "memory": make_memory}[kind](db, chosen, user)
+        chosen["event_id" if kind == "event" else "ref"] = made
         db.execute("UPDATE family_thread_messages SET proposals=? WHERE id=?", (json.dumps(found), message_id))
-    return {"id": event_id}
+    return {"id": made}
+
+
+def make_event(db, proposal, user):
+    event = EventInput(**{key: proposal[key] for key in ("title", "starts_at", "ends_at", "location", "attendees")})
+    attendees = [value for value in event.attendees
+                 if db.execute("SELECT 1 FROM family_members WHERE id=? AND active=1", (value,)).fetchone()] or [user["id"]]
+    if db.execute("SELECT COUNT(*) FROM family_events WHERE deleted=0").fetchone()[0] >= 2000:
+        raise HTTPException(409, "Le planning est plein. Retirez les anciens événements.")
+    event_id = str(uuid4())
+    db.execute("""INSERT INTO family_events(id,title,starts_at,ends_at,attendees,driver_id,location,recurrence,created_by)
+        VALUES(?,?,?,?,?,NULL,?,'once',?)""", (event_id, event.title, event.starts_at.astimezone(timezone.utc).isoformat(),
+                                               event.ends_at.astimezone(timezone.utc).isoformat(), json.dumps(attendees),
+                                               event.location.strip(), user["id"]))
+    return event_id
+
+
+def make_task(db, proposal, user):
+    assignee = proposal["assignee_id"]
+    if assignee and not db.execute("SELECT 1 FROM family_members WHERE id=? AND active=1", (assignee,)).fetchone():
+        assignee = user["id"]
+    if db.execute("SELECT COUNT(*) FROM family_tasks WHERE deleted=0").fetchone()[0] >= 2000:
+        raise HTTPException(409, "La liste est pleine. Retirez les anciennes tâches.")
+    task_id = str(uuid4())
+    db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by) VALUES(?,?,?,?,?)",
+               (task_id, proposal["title"], assignee, proposal["due_date"], user["id"]))
+    return task_id
+
+
+def make_item(db, proposal, user):
+    if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] >= 2000:
+        raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
+    item_id = str(uuid4())
+    db.execute("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
+               (item_id, proposal["title"], proposal["quantity"], proposal["category"], user["id"], now()))
+    return item_id
+
+
+def make_memory(db, proposal, user):
+    return remember(db, user, proposal["title"])
+
+
+def remember(db, user, text):
+    if db.execute("SELECT COUNT(*) FROM family_memory WHERE member_id=?", (user["id"],)).fetchone()[0] >= MAX_MEMORY:
+        raise HTTPException(409, f"Hermes retient {MAX_MEMORY} informations au plus. Retirez-en une dans « Moi ».")
+    memory_id = str(uuid4())
+    db.execute("INSERT INTO family_memory(id,member_id,text,created_at) VALUES(?,?,?,?)", (memory_id, user["id"], text, now()))
+    return memory_id
+
+
+class Memory(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+
+
+@router.get("/memory")
+def memory(user=Depends(member)):
+    with database() as db:
+        rows = db.execute("SELECT id,text,created_at FROM family_memory WHERE member_id=? ORDER BY created_at", (user["id"],)).fetchall()
+    return {"memory": [dict(row) for row in rows], "limit": MAX_MEMORY}
+
+
+@router.post("/memory", status_code=201)
+def add_memory(body: Memory, user=Depends(member)):
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(422, "Écrivez ce que Hermes doit retenir.")
+    with database() as db, db:
+        return {"id": remember(db, user, text)}
+
+
+@router.delete("/memory/{memory_id}")
+def forget_memory(memory_id: str, user=Depends(member)):
+    """Each member's memory is theirs alone: another member's entry reads as missing."""
+    with database() as db, db:
+        if db.execute("DELETE FROM family_memory WHERE id=? AND member_id=?", (memory_id, user["id"])).rowcount != 1:
+            raise HTTPException(404, "Information introuvable.")
+    return {"ok": True}

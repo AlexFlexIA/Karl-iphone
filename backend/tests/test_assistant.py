@@ -150,5 +150,47 @@ class AssistantTests(unittest.TestCase):
         self.assertFalse(self.client.get('/api/family/assistant').json()['enabled'])
 
 
+    def test_tasks_items_and_memory_need_a_tap_and_memory_stays_private(self):
+        session, cookie = self.join('teen@example.test')
+        csrf = self.headers['X-CSRF-Token']
+        reply_text = ('Voilà.\n```karl-task\n{"title": "Réviser", "due_date": "2026-11-03", "assignee": "Inconnu"}\n```'
+                      '\n```karl-item\n{"name": "Lait", "quantity": "2", "category": "Frais"}\n```'
+                      '\n```karl-item\n{"name": "Pain", "category": "Boulangerie"}\n```'
+                      '\n```karl-memory\n{"text": "Allergique aux noix"}\n```')
+        with patch.object(assistant, 'complete', AsyncMock(return_value=reply_text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertEqual(reply['content'], 'Voilà.')
+        self.assertEqual([proposal['kind'] for proposal in reply['proposals']], ['task', 'item', 'memory'])
+        self.assertEqual(reply['proposals'][0]['assignee_id'], session['user']['id'])
+        self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'], [])
+        self.assertEqual(self.client.get('/api/family/assistant/memory').json()['memory'], [])
+        path = f"/api/family/assistant/messages/{reply['id']}/accept"
+        ids = [self.client.post(path, headers=self.headers, json={'index': index}).json()['id'] for index in range(3)]
+        self.assertEqual(self.client.post(path, headers=self.headers, json={'index': 0}).json()['id'], ids[0])
+        self.assertEqual([task['title'] for task in self.client.get('/api/family/tasks').json()['tasks']], ['Réviser'])
+        self.assertEqual([item['name'] for item in self.client.get('/api/family/items').json()['items']], ['Lait'])
+        memory = self.client.get('/api/family/assistant/memory').json()['memory']
+        self.assertEqual([row['text'] for row in memory], ['Allergique aux noix'])
+        self.assertEqual(self.client.post('/api/family/assistant/memory', headers=self.headers, json={'text': 'Couche-tôt'}).status_code, 201)
+
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(str(uuid4()))
+        context = complete.call_args.args[0][0]['content']
+        self.assertIn('Allergique aux noix', context)
+        self.assertIn('Réviser', context)
+        self.assertIn('Lait (2)', context)
+        self.assertIn('Ce que tu ne fais jamais : acheter', context)
+
+        self.use(self.parent_cookie, self.parent['csrf'])
+        self.assertEqual(self.client.get('/api/family/assistant/memory').json()['memory'], [])
+        self.assertEqual(self.client.delete('/api/family/assistant/memory/' + memory[0]['id'], headers=self.headers).status_code, 404)
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(str(uuid4()))
+        self.assertNotIn('Allergique', complete.call_args.args[0][0]['content'])
+        self.use(cookie, csrf)
+        self.assertEqual(self.client.delete('/api/family/assistant/memory/' + memory[0]['id'], headers=self.headers).status_code, 200)
+        self.assertEqual([row['text'] for row in self.client.get('/api/family/assistant/memory').json()['memory']], ['Couche-tôt'])
+
+
 if __name__ == '__main__':
     unittest.main()

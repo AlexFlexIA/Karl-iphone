@@ -6,7 +6,20 @@ import type { Ctx } from './context'
 import { capitalize, clock, dateKey, longDate, plural } from './model'
 import { Empty, Person, ScreenHead, Skeleton } from './ui'
 
-type Proposal = { title: string; starts_at: string; ends_at: string; location: string; attendees: string[]; event_id: string | null }
+type Proposal = {
+  kind?: 'event' | 'task' | 'item' | 'memory'; title: string; event_id?: string | null; ref?: string | null
+  starts_at?: string; ends_at?: string; location?: string; attendees?: string[]
+  due_date?: string | null; assignee_id?: string | null; quantity?: string; category?: string
+}
+// Older replies only carried calendar proposals, without a kind.
+const kindOf = (proposal: Proposal) => proposal.kind ?? 'event'
+const doneOf = (proposal: Proposal) => kindOf(proposal) === 'event' ? proposal.event_id : proposal.ref
+const verbs = {
+  event: { action: 'Ajouter au planning', done: 'Ajouté au planning', icon: 'calendar' },
+  task: { action: 'Créer la tâche', done: 'Tâche créée', icon: 'check' },
+  item: { action: 'Ajouter aux courses', done: 'Ajouté aux courses', icon: 'cart' },
+  memory: { action: 'Retenir', done: 'Retenu · modifiable dans « Moi »', icon: 'key' },
+} as const
 type Message = { id: number | string; role: 'user' | 'assistant'; content: string; proposals: Proposal[]; created_at: string }
 type Thread = { id: string; title: string; updated_at: string }
 type Overview = { enabled: boolean; configured: boolean; remaining: number; threads: Thread[] }
@@ -72,8 +85,8 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
     await ctx.run(async () => {
       const { id } = await api(`family/assistant/messages/${message.id}/accept`, { method: 'POST', body: JSON.stringify({ index }) })
       setMessages(previous => previous.map(item => item.id !== message.id ? item
-        : { ...item, proposals: item.proposals.map((proposal, at) => at === index ? { ...proposal, event_id: id } : proposal) }))
-    }, `« ${message.proposals[index].title} » ajouté au planning.`)
+        : { ...item, proposals: item.proposals.map((proposal, at) => at === index ? { ...proposal, [kindOf(proposal) === 'event' ? 'event_id' : 'ref']: id } : proposal) }))
+    }, `« ${message.proposals[index].title} » : ${verbs[kindOf(message.proposals[index])].done.toLowerCase()}.`)
   }
 
   const lede = 'Ton fil privé avec Hermes. Personne d’autre dans la famille ne peut le lire.'
@@ -107,19 +120,26 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
         <h2 className="sr-only">{current ? current.title : 'Nouvelle conversation'}</h2>
         <div className="chat-log" role="log" aria-live="polite" aria-busy={loading || waiting}>
           {loading ? <Skeleton lines={3} /> : !messages.length && <Empty title={`Bonjour ${ctx.user.name} !`}>
-            Pose une question, demande un coup de main pour un devoir, ou dis par exemple « ajoute piscine mercredi à 17 h ». Rien n’est ajouté au planning sans ton accord.
+            Pose une question, demande un coup de main, ou dis par exemple « ajoute piscine mercredi à 17 h », « rappelle-moi d’appeler le dentiste » ou « mets du lait sur la liste ». Rien n’est ajouté ni retenu sans ton accord, et Hermes n’achète, n’envoie et ne supprime jamais rien.
           </Empty>}
           {messages.map(message => <div key={message.id} className={'bubble bubble-' + message.role}>
             <p className="bubble-who">{message.role === 'user' ? 'Toi' : 'Hermes'}</p>
             <p className="bubble-text">{message.content}</p>
-            {message.proposals.map((proposal, index) => <div className="proposal" key={index}>
-              <p className="proposal-title"><Icon name="calendar" />{proposal.title}</p>
-              <p className="row-meta"><span>{capitalize(longDate(dateKey(new Date(proposal.starts_at))))} · {clock(proposal.starts_at)}–{clock(proposal.ends_at)}</span>
-                {proposal.location && <span><Icon name="pin" />{proposal.location}</span>}</p>
-              <p className="thread-meta">{proposal.attendees.map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />)}</p>
-              {proposal.event_id ? <p className="proposal-done"><Icon name="check" />Ajouté au planning</p>
-                : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />Ajouter au planning</button>}
-            </div>)}
+            {message.proposals.map((proposal, index) => {
+              const kind = kindOf(proposal)
+              return <div className="proposal" key={index}>
+                <p className="proposal-title"><Icon name={verbs[kind].icon} />{kind === 'memory' ? 'À retenir : ' : ''}{proposal.title}</p>
+                {kind === 'event' && proposal.starts_at && proposal.ends_at && <>
+                  <p className="row-meta"><span>{capitalize(longDate(dateKey(new Date(proposal.starts_at))))} · {clock(proposal.starts_at)}–{clock(proposal.ends_at)}</span>
+                    {proposal.location && <span><Icon name="pin" />{proposal.location}</span>}</p>
+                  <p className="thread-meta">{(proposal.attendees ?? []).map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />)}</p>
+                </>}
+                {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {capitalize(longDate(proposal.due_date))}</span>}</p>}
+                {kind === 'item' && <p className="row-meta">{proposal.quantity && <strong>{proposal.quantity}</strong>}<span>{proposal.category}</span></p>}
+                {doneOf(proposal) ? <p className="proposal-done"><Icon name="check" />{verbs[kind].done}</p>
+                  : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />{verbs[kind].action}</button>}
+              </div>
+            })}
           </div>)}
           {waiting && <p className="bubble bubble-assistant bubble-wait"><span className="bubble-who">Hermes</span>Hermes réfléchit…</p>}
           <div ref={end} />

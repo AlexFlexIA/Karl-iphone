@@ -7,7 +7,7 @@ import { addDays, capitalize, dateKey, longDate, monday, plural, shortDate } fro
 import { Empty, Sheet, Skeleton } from './ui'
 
 const slots: [Slot, string][] = [['lunch', 'Midi'], ['dinner', 'Soir']]
-type Open = { kind: 'meal'; day: string; slot: Slot } | { kind: 'recipe'; recipe: Recipe | null } | { kind: 'view'; recipe: Recipe } | { kind: 'edit'; meal: Meal } | { kind: 'shopping' } | null
+type Open = { kind: 'meal'; day: string; slot: Slot } | { kind: 'recipe'; recipe: Recipe | null } | { kind: 'view'; recipe: Recipe } | { kind: 'edit'; meal: Meal } | { kind: 'shopping' } | { kind: 'recipe-shopping'; recipe: Recipe; servings: number } | null
 
 // The family menu for one week, the recipe book behind it, and the list it adds up to.
 export function Meals({ ctx }: { ctx: Ctx }) {
@@ -95,14 +95,18 @@ export function Meals({ ctx }: { ctx: Ctx }) {
     </section>
 
     <Sheet open={!!open} title={open?.kind === 'meal' ? `${capitalize(longDate(open.day))} · ${open.slot === 'lunch' ? 'midi' : 'soir'}`
-      : open?.kind === 'recipe' ? (open.recipe ? 'Modifier la recette' : 'Nouvelle recette') : open?.kind === 'view' ? open.recipe.title : open?.kind === 'edit' ? open.meal.title : 'Courses du menu'} onClose={close}>
+      : open?.kind === 'recipe' ? (open.recipe ? 'Modifier la recette' : 'Nouvelle recette') : open?.kind === 'view' ? open.recipe.title : open?.kind === 'edit' ? open.meal.title : open?.kind === 'recipe-shopping' ? `Courses · ${open.recipe.title}` : 'Courses du menu'} onClose={close}>
       {open?.kind === 'edit' && <MealEdit key={open.meal.id} ctx={ctx} meal={open.meal} onDone={() => { close(); void load() }} />}
-      {open?.kind === 'view' && <RecipeView recipe={open.recipe} family={ctx.members.length}
+      {open?.kind === 'view' && <RecipeView recipe={open.recipe} family={ctx.members.length} disabled={ctx.disabled}
+        onShop={servings => setOpen({ kind: 'recipe-shopping', recipe: open.recipe, servings })}
         onEdit={ctx.canManage(open.recipe.created_by) ? () => setOpen({ kind: 'recipe', recipe: open.recipe }) : undefined} />}
       {open?.kind === 'meal' && <MealForm key={open.day + open.slot} ctx={ctx} recipes={recipes ?? []} day={open.day} slot={open.slot} onDone={() => { close(); void load() }}
         onNewRecipe={() => setOpen({ kind: 'recipe', recipe: null })} />}
       {open?.kind === 'recipe' && <RecipeForm key={open.recipe?.id ?? 'new'} ctx={ctx} recipe={open.recipe} onDone={() => { close(); void load() }} />}
-      {open?.kind === 'shopping' && <ShoppingPreview ctx={ctx} first={first} last={last} onDone={close} />}
+      {open?.kind === 'shopping' && <ShoppingPreview ctx={ctx} path={`family/meals/shopping?first=${first}&last=${last}`} target="family/meals/shopping" extra={{ first, last }}
+        intro={without => `Ingrédients des repas du ${shortDate(first)} au ${shortDate(last)}, ajustés au nombre de personnes.${without > 0 ? ` ${plural(without, 'plat')} sans recette ${without > 1 ? 'ne sont pas comptés' : 'n’est pas compté'}.` : ''}`} onDone={close} />}
+      {open?.kind === 'recipe-shopping' && <ShoppingPreview ctx={ctx} path={`family/recipes/${open.recipe.id}/shopping?servings=${open.servings}`} target={`family/recipes/${open.recipe.id}/shopping`}
+        extra={{ servings: open.servings }} intro={() => `Ingrédients de « ${open.recipe.title} » pour ${plural(open.servings, 'personne')}, sans l’ajouter au menu.`} onDone={close} />}
     </Sheet>
   </>
 }
@@ -166,24 +170,26 @@ function RecipeForm({ ctx, recipe, onDone }: { ctx: Ctx; recipe: Recipe | null; 
   </form>
 }
 
-function ShoppingPreview({ ctx, first, last, onDone }: { ctx: Ctx; first: string; last: string; onDone: () => void }) {
+function ShoppingPreview({ ctx, path, target, extra, intro, onDone }: {
+  ctx: Ctx; path: string; target: string; extra: Record<string, unknown>; intro: (without: number) => string; onDone: () => void
+}) {
   const [lines, setLines] = useState<ShoppingLine[] | null>(null)
   const [without, setWithout] = useState(0)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [problem, setProblem] = useState('')
   const { api } = ctx
   useEffect(() => {
-    api(`family/meals/shopping?first=${first}&last=${last}`).then(result => {
-      setLines(result.lines); setWithout(result.without_recipe)
+    api(path).then(result => {
+      setLines(result.lines); setWithout(result.without_recipe ?? 0)
       setChosen(new Set(result.lines.filter((line: ShoppingLine) => !line.on_list).map((line: ShoppingLine) => line.key)))
     }, e => setProblem(e instanceof Error ? e.message : 'Calcul impossible.'))
-  }, [api, first, last])
+  }, [api, path])
 
   const toggle = (key: string) => setChosen(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next })
   async function add() {
     let added = 0
     if (await ctx.run(async () => {
-      added = (await api('family/meals/shopping', { method: 'POST', body: JSON.stringify({ first, last, keys: [...chosen] }) })).added
+      added = (await api(target, { method: 'POST', body: JSON.stringify({ ...extra, keys: [...chosen] }) })).added
     })) { ctx.notify(added ? `${plural(added, 'article')} ajouté${added > 1 ? 's' : ''} à la liste.` : 'Rien de nouveau à ajouter.'); onDone() }
   }
 
@@ -191,8 +197,7 @@ function ShoppingPreview({ ctx, first, last, onDone }: { ctx: Ctx; first: string
   if (!lines) return <div className="sheet-body" aria-busy="true"><Skeleton lines={5} /></div>
   const fresh = lines.filter(line => !line.on_list)
   return <div className="sheet-body">
-    <p className="muted">Ingrédients des repas du {shortDate(first)} au {shortDate(last)}, ajustés au nombre de personnes.
-      {without > 0 && ` ${plural(without, 'plat')} sans recette ${without > 1 ? 'ne sont pas comptés' : 'n’est pas compté'}.`}</p>
+    <p className="muted">{intro(without)}</p>
     {!lines.length ? <Empty title="Aucun ingrédient à prévoir." /> : <ul className="rows">
       {lines.map(line => <li className="row" key={line.key}>
         <label className="row-main">
@@ -223,7 +228,7 @@ function measure(quantity: number, unit: string) {
   return `${amount(value)}${unit ? ' ' + unit : ''}`
 }
 
-function RecipeView({ recipe, family, onEdit }: { recipe: Recipe; family: number; onEdit?: () => void }) {
+function RecipeView({ recipe, family, disabled, onShop, onEdit }: { recipe: Recipe; family: number; disabled: boolean; onShop: (servings: number) => void; onEdit?: () => void }) {
   const [people, setPeople] = useState(family || recipe.servings)
   const factor = people / recipe.servings
   return <div className="sheet-body recipe-view">
@@ -237,7 +242,10 @@ function RecipeView({ recipe, family, onEdit }: { recipe: Recipe; family: number
     </section>
     {recipe.notes && <section aria-labelledby="view-notes"><h3 id="view-notes" className="group-title">Préparation</h3><p className="notes">{recipe.notes}</p></section>}
     {people !== recipe.servings && <p className="note"><Icon name="alert" />Quantités recalculées depuis la recette pour {plural(recipe.servings, 'personne')}.</p>}
-    {onEdit && <div className="sheet-actions"><span /><button className="btn btn-secondary" onClick={onEdit}><Icon name="edit" />Modifier</button></div>}
+    <div className="sheet-actions">
+      {onEdit ? <button className="btn btn-secondary" onClick={onEdit}><Icon name="edit" />Modifier</button> : <span />}
+      <button className="btn btn-gold" disabled={disabled || !recipe.ingredients.length} onClick={() => onShop(people)}><Icon name="cart" />Ajouter aux courses</button>
+    </div>
   </div>
 }
 

@@ -8,7 +8,7 @@ from fractions import Fraction
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from .family import now, required
@@ -299,19 +299,25 @@ def copy_week(body: Copy, user=Depends(member)):
 
 
 def needs(db, first, last):
-    """Ingredients of every planned meal, scaled to its portions, summed per product and unit,
-    and compared with what is already on the shared list, ticked or not."""
-    lines, without = {}, 0
+    """Ingredients of every planned meal, scaled to its portions."""
+    dishes, without = [], 0
     for meal in planned(db, first, last):
         if not meal["recipe_id"] or not meal["ingredients"] or meal["recipe_deleted"]:
             without += 1
             continue
-        factor = meal["servings"] / (meal["recipe_servings"] or 1)
-        for item in json.loads(meal["ingredients"]):
+        dishes.append((meal["label"], json.loads(meal["ingredients"]), meal["servings"] / (meal["recipe_servings"] or 1)))
+    return totals(db, dishes), without
+
+
+def totals(db, dishes):
+    """Summed per product and unit, and compared with what is already on the shared list, ticked or not."""
+    lines = {}
+    for title, ingredients, factor in dishes:
+        for item in ingredients:
             key = key_of(item["name"])
             line = lines.setdefault(key, {"key": key, "name": item["name"], "category": item["category"], "amounts": {}, "sources": []})
-            if meal["label"] not in line["sources"]:
-                line["sources"].append(meal["label"])
+            if title not in line["sources"]:
+                line["sources"].append(title)
             if item["quantity"] is None:
                 line["amounts"].setdefault("", None)
                 continue
@@ -328,7 +334,7 @@ def needs(db, first, last):
         result.append({"key": line["key"], "name": line["name"][:1].upper() + line["name"][1:], "category": line["category"],
                        "quantity": " + ".join(part for part in parts if part)[:60], "sources": line["sources"],
                        "on_list": listed.get(line["key"])})
-    return result, without
+    return result
 
 
 @router.get("/meals/shopping")
@@ -353,14 +359,43 @@ def generate(body: Generate, user=Depends(member)):
     with database() as db, db:
         db.execute("BEGIN IMMEDIATE")
         lines, _ = needs(db, body.first, body.last)
-        chosen = [line for line in lines if line["key"] in wanted and not line["on_list"]]
-        count = db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0]
-        if count + len(chosen) > 2000:
-            raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
-        stamp = now()
-        db.executemany("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
-                       [(str(uuid4()), line["name"], line["quantity"], line["category"], user["id"], stamp) for line in chosen])
-    return {"added": len(chosen), "skipped": len([line for line in lines if line["key"] in wanted]) - len(chosen)}
+        return add_lines(db, user, lines, wanted)
+
+
+def add_lines(db, user, lines, keys):
+    chosen = [line for line in lines if line["key"] in keys and not line["on_list"]]
+    if db.execute("SELECT COUNT(*) FROM family_items WHERE deleted=0").fetchone()[0] + len(chosen) > 2000:
+        raise HTTPException(409, "La liste est pleine. Retirez les anciens articles.")
+    stamp = now()
+    db.executemany("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES(?,?,?,?,?,?)",
+                   [(str(uuid4()), line["name"], line["quantity"], line["category"], user["id"], stamp) for line in chosen])
+    return {"added": len(chosen), "skipped": len([line for line in lines if line["key"] in keys]) - len(chosen)}
+
+
+def recipe_lines(db, recipe_id, servings):
+    row = db.execute("SELECT * FROM family_recipes WHERE id=? AND deleted=0", (recipe_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Recette introuvable.")
+    return totals(db, [(row["title"], json.loads(row["ingredients"]), servings / row["servings"])])
+
+
+@router.get("/recipes/{recipe_id}/shopping")
+def recipe_preview(recipe_id: str, servings: int = Query(ge=1, le=30), user=Depends(member)):
+    with database() as db:
+        return {"lines": recipe_lines(db, recipe_id, servings)}
+
+
+class RecipeShopping(BaseModel):
+    servings: int = Field(ge=1, le=30)
+    keys: list[str] = Field(max_length=60)
+
+
+@router.post("/recipes/{recipe_id}/shopping", status_code=201)
+def recipe_shopping(recipe_id: str, body: RecipeShopping, user=Depends(member)):
+    """A recipe straight to the list, without planning it: same totals, same no-duplicate rule."""
+    with database() as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        return add_lines(db, user, recipe_lines(db, recipe_id, body.servings), set(body.keys))
 
 
 def initialize():

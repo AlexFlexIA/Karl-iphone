@@ -143,5 +143,16 @@ class MealTests(unittest.TestCase):
                          [('2026-11-09', 'Soupe', 3, True), ('2026-11-10', 'Pique-nique', 4, False)])
 
 
+    def test_a_recipe_goes_to_the_list_without_being_planned(self):
+        soup = self.recipe('Soupe', 4, ['1 kg de carottes', '2 oignons', 'sel'])
+        self.post('items', {'name': 'Sel'})
+        preview = self.client.get(f'/api/family/recipes/{soup}/shopping?servings=6').json()['lines']
+        self.assertEqual({line['key']: (line['quantity'], line['on_list']) for line in preview},
+                         {'carotte': ('1,5 kg', None), 'oignon': ('3', None), 'sel': ('', 'sur la liste')})
+        added = self.post(f'recipes/{soup}/shopping', {'servings': 6, 'keys': ['carotte', 'sel']})
+        self.assertEqual(added.json(), {'added': 1, 'skipped': 1})
+        self.assertEqual(self.client.get('/api/family/recipes/nope/shopping?servings=2').status_code, 404)
+
+
 if __name__ == '__main__':
     unittest.main()

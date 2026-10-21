@@ -49,5 +49,17 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Ajouts simultanés du même article sérialisés ; espace personnel utilisable même si le stockage du navigateur est bloqué.
 - Moins d’appels réseau (carnet de recettes, totaux du menu) ; station et prévision météo chargées en parallèle.
 
+### Troisième relecture complète (15 points, tous traités)
+- Rattrapage `joined_at` élargi aux membres déconnectés qui ont laissé une trace ; décocher un article verrouillé comme l’ajout.
+- Rayon inconnu proposé par Hermes ramené à la devinette ; « du sel », « de la farine » bien lus ; « pâté » distinct de « pâtes ».
+- Hermes revoit ses propositions précédentes (et si elles ont été acceptées) dans l’historique.
+- Jour de fin d’une activité choisi explicitement ; le planning reste sur la semaine regardée après modification d’une série.
+- Couloirs qui ne reviennent plus seuls à l’heure actuelle ; Accueil qui passe à la nouvelle semaine le lundi à minuit.
+- Rappel affiché une seule fois même sans stockage ; date propre du rappel conservée à la modification d’une tâche.
+- Écran plus gardé allumé hors de la liste ; message de réactivation adapté au rôle ; suggestion d’ingrédients à jour à la minute.
+
+## Cycle 4 — reprise n°1 (10 h 20 UTC, après réinitialisation du quota)
+- Vérification complète sur base vide : 73 tests serveur, build, parcours navigateur (8/8), axe sans défaut.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

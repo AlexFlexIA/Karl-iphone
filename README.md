@@ -95,6 +95,20 @@ L’adaptateur utilise `/v1/models` et `/v1/chat/completions` de l’[API Hermes
 
 Les dashboards personnels Aujourd’hui/Maison lisent `HERMES_CRON_DIR` ; depuis un Mac, définir aussi `HERMES_CRON_SSH_HOST` et éventuellement `HERMES_CRON_READ_USER` (droits préexistants). Projection en lecture seule des tâches et derniers rapports Bresser/Tempo ; aucun prompt, destinataire, rapport brut ou secret renvoyé. Cache 20 secondes, relevés anciens/pannes signalés, aucune tâche exécutée. Mesures Linky non intégrées.
 
+## Tester les repas et l’assistant
+
+Sur une instance de test (`KARL_PREVIEW=1`, base séparée), sans toucher à la production :
+
+1. **Courses → Repas → + Recette** : « Crêpes », pour 4, ingrédients « 250 g de farine », « 4 œufs », « 50 cl de lait », « sel ».
+2. **Prévoir** un soir de la semaine, 6 personnes. L’Accueil signale les ingrédients manquants et, le jour même, affiche le menu.
+3. **Courses du menu** : 375 g de farine, 6 œufs, 750 ml de lait, sel. Décocher une ligne, ajouter, puis rouvrir : les lignes déjà sur la liste sont grisées.
+4. **Liste** : ajouter « farines » → refusé car déjà présent. Crayon → changer la quantité. Cocher deux articles → **Vider le panier** → **Annuler**.
+5. **Semaine suivante → Reprendre la semaine précédente**. Toucher un plat pour passer de soir à midi.
+6. **Hermes** : toucher une idée de demande, envoyer, puis accepter une proposition. Rien n’est créé sans ce toucher.
+7. **Moi → Hermes et toi** : ajouter puis effacer une information retenue ; lire « Ce que Hermes peut faire ».
+8. **Tâches** : une tâche datée « Chaque semaine », la cocher → la suivante apparaît à J+7 ; la décocher → elle disparaît.
+9. Propriétaire, **espace personnel** : nouvelle conversation → **Préparer mon panier Drive avec la liste de la famille** remplit le champ ; relire avant d’envoyer.
+
 ## Vérifier
 
 `cd backend && .venv/bin/python -m unittest discover -s tests -v` puis `cd frontend && npm run build`.

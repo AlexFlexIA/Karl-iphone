@@ -85,11 +85,11 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
     const current = `${user.id}|${dateKey(week)}`
     setRefreshing(true)
     try {
-      const [members, items, tasks, events, pending] = await Promise.all([
+      const [members, items, tasks, events, pending, meals] = await Promise.all([
         api('family/members'), api('family/items'), api('family/tasks'), api(`family/events?first=${dateKey(week)}&last=${dateKey(addDays(week, 6))}`),
-        api('family/events/pending'),
+        api('family/events/pending'), api(`family/meals?first=${dateKey(week)}&last=${dateKey(addDays(week, 6))}`),
       ])
-      if (mounted.current && scope.current === current) { setData({ ...members, ...items, ...tasks, ...events, pending: pending.events, at: new Date() }); setNow(new Date()) }
+      if (mounted.current && scope.current === current) { setData({ ...members, ...items, ...tasks, ...events, ...meals, pending: pending.events, at: new Date() }); setNow(new Date()) }
     } catch (e) { if (mounted.current && scope.current === current) setError(e instanceof Error ? e.message : 'Actualisation impossible.') }
     finally { if (mounted.current) setRefreshing(false) }
   }, [api, user, week])

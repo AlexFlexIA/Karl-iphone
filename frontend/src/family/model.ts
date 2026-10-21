@@ -17,7 +17,7 @@ export type Ingredient = { line: string; name: string; quantity: number | null; 
 export type Recipe = { id: string; title: string; servings: number; ingredients: Ingredient[]; notes: string; created_by: string; version: number }
 export type Meal = { id: string; day: string; slot: Slot; recipe_id: string | null; title: string; servings: number; created_by: string; version: number; has_recipe: boolean }
 export type ShoppingLine = { key: string; name: string; category: string; quantity: string; sources: string[]; on_list: string | null }
-export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; pending: FamilyEvent[]; at: Date }
+export type Snapshot = { members: Member[]; items: Item[]; tasks: Task[]; events: FamilyEvent[]; pending: FamilyEvent[]; meals: Meal[]; at: Date }
 export type View = 'today' | 'planning' | 'shopping' | 'tasks' | 'assistant' | 'me'
 
 export const categories = ['Fruits et légumes', 'Frais', 'Épicerie', 'Maison', 'Autres'] as const

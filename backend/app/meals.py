@@ -3,7 +3,7 @@ Nothing here talks to a shop: the list is prepared in KARL and stays a list."""
 import json
 import re
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from fractions import Fraction
 from typing import Literal
 from uuid import uuid4
@@ -254,6 +254,28 @@ def remove_meal(meal_id: str, body: Change, user=Depends(member)):
         if cursor.rowcount != 1:
             raise HTTPException(409, "Ce repas a changé. Actualisez puis réessayez.")
     return {"ok": True}
+
+
+class Copy(BaseModel):
+    source: date
+    target: date
+
+
+@router.post("/meals/copy", status_code=201)
+def copy_week(body: Copy, user=Depends(member)):
+    """Repeats a week's menu on another week; a slot that already has a dish is left alone."""
+    if abs((body.target - body.source).days) < 7:
+        raise HTTPException(422, "Choisissez deux semaines différentes.")
+    shift = body.target - body.source
+    with database() as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        taken = {(row["day"], row["slot"]) for row in planned(db, body.target, body.target + timedelta(days=6))}
+        copied = [(str(uuid4()), (date.fromisoformat(row["day"]) + shift).isoformat(), row["slot"],
+                   row["recipe_id"] if row["recipe_id"] and not row["recipe_deleted"] else None, row["label"], row["servings"], user["id"])
+                  for row in planned(db, body.source, body.source + timedelta(days=6))
+                  if ((date.fromisoformat(row["day"]) + shift).isoformat(), row["slot"]) not in taken]
+        db.executemany("INSERT INTO family_meals(id,day,slot,recipe_id,title,servings,created_by) VALUES(?,?,?,?,?,?,?)", copied)
+    return {"copied": len(copied)}
 
 
 def needs(db, first, last):

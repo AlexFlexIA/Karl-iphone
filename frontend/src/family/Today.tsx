@@ -22,6 +22,9 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
   const invites = data?.pending ?? []
   const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
+  const meals = data?.meals.filter(meal => meal.day === today) ?? []
+  const menu = ([['lunch', 'Midi'], ['dinner', 'Soir']] as const).map(([slot, name]) => [name, meals.filter(meal => meal.slot === slot).map(meal => meal.title).join(', ')] as const)
+    .filter(([, dishes]) => dishes)
   const hour = ctx.now.getHours()
   const greeting = hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour'
   const summary = !data ? 'Lecture de la journée…' : [
@@ -46,6 +49,11 @@ export function Today({ ctx }: { ctx: Ctx }) {
         {data ? <Thread ctx={ctx} events={events} day={today} /> : <Skeleton />}
       </section>
       <div className="today-side">
+        <section aria-labelledby="today-menu">
+          <div className="section-head"><h2 id="today-menu">Au menu</h2><button className="btn-quiet" onClick={() => { writePreference('shopping-mode', 'meals'); ctx.go('shopping') }}>Menu de la semaine<Icon name="chevron" /></button></div>
+          {!data ? <Skeleton lines={1} /> : menu.length ? <ul className="today-menu">{menu.map(([slot, dishes]) => <li key={slot}>
+            <span className="menu-slot-name">{slot}</span><span>{dishes}</span></li>)}</ul> : <p className="muted">Rien de prévu pour aujourd’hui.</p>}
+        </section>
         <section aria-labelledby="today-shopping">
           <div className="section-head"><h2 id="today-shopping">Courses</h2><button className="btn-quiet" onClick={() => ctx.go('shopping')}>{data ? `${plural(pending.length, 'article')}` : 'La liste'}<Icon name="chevron" /></button></div>
           {data && pending.length > 0 && <p className="muted">{pending.slice(0, 4).map(item => item.name).join(', ')}{pending.length > 4 ? '…' : ''}</p>}

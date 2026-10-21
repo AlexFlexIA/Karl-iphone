@@ -126,5 +126,17 @@ class MealTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/family/recipes', headers={'Origin': 'http://localhost'}, json={'title': 'x'}).status_code, 403)
 
 
+    def test_copying_a_week_fills_only_empty_slots(self):
+        soup = self.recipe('Soupe', 4, ['1 kg de carottes'])
+        self.post('meals', {'day': '2026-11-02', 'slot': 'dinner', 'recipe_id': soup, 'servings': 3})
+        self.post('meals', {'day': '2026-11-03', 'slot': 'lunch', 'title': 'Cantine'})
+        self.post('meals', {'day': '2026-11-10', 'slot': 'lunch', 'title': 'Pique-nique'})
+        self.assertEqual(self.post('meals/copy', {'source': '2026-11-02', 'target': '2026-11-05'}).status_code, 422)
+        self.assertEqual(self.post('meals/copy', {'source': '2026-11-02', 'target': '2026-11-09'}).json(), {'copied': 1})
+        week = self.client.get('/api/family/meals?first=2026-11-09&last=2026-11-15').json()['meals']
+        self.assertEqual(sorted((row['day'], row['title'], row['servings'], row['has_recipe']) for row in week),
+                         [('2026-11-09', 'Soupe', 3, True), ('2026-11-10', 'Pique-nique', 4, False)])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -88,6 +88,8 @@ class MealTests(unittest.TestCase):
         again = self.post('meals/shopping', {'first': '2026-11-02', 'last': '2026-11-08', 'keys': ['oeuf', 'farine']})
         self.assertEqual(again.json(), {'added': 0, 'skipped': 2})
         items = {item['name']: item for item in self.client.get('/api/family/items').json()['items']}
+        self.client.patch('/api/family/items/' + items['Farine']['id'], headers=self.headers, json={'version': 1, 'checked': True}).raise_for_status()
+        self.assertEqual({line['key']: line['on_list'] for line in self.preview()['lines']}['farine'], 'dans le panier')
         self.assertEqual(items['Oeufs']['quantity'], '11')
         self.assertEqual(items['Oeufs']['category'], 'Frais')
         self.assertEqual(len(items), 3)

@@ -300,7 +300,7 @@ def copy_week(body: Copy, user=Depends(member)):
 
 def needs(db, first, last):
     """Ingredients of every planned meal, scaled to its portions, summed per product and unit,
-    and compared with what is still unticked on the shared list."""
+    and compared with what is already on the shared list, ticked or not."""
     lines, without = {}, 0
     for meal in planned(db, first, last):
         if not meal["recipe_id"] or not meal["ingredients"] or meal["recipe_deleted"]:
@@ -319,8 +319,9 @@ def needs(db, first, last):
             previous = line["amounts"].get(unit) or 0
             line["amounts"][unit] = previous + item["quantity"] * scale * factor
     listed = {}
-    for row in db.execute("SELECT name,quantity FROM family_items WHERE deleted=0 AND checked=0"):
-        listed.setdefault(key_of(row["name"]), row["quantity"] or "sur la liste")
+    # A ticked item is already in the trolley: suggesting it again would buy it twice.
+    for row in db.execute("SELECT name,quantity,checked FROM family_items WHERE deleted=0 ORDER BY checked"):
+        listed.setdefault(key_of(row["name"]), "dans le panier" if row["checked"] else row["quantity"] or "sur la liste")
     result = []
     for line in sorted(lines.values(), key=lambda value: (value["category"], plain(value["name"]))):
         parts = [label(quantity, unit) for unit, quantity in line["amounts"].items()]
@@ -346,7 +347,7 @@ class Generate(BaseModel):
 
 @router.post("/meals/shopping", status_code=201)
 def generate(body: Generate, user=Depends(member)):
-    """Adds only the chosen lines, and never one that is already unticked on the list."""
+    """Adds only the chosen lines, and never one that is already on the list."""
     window(body.first, body.last)
     wanted = set(body.keys)
     with database() as db, db:

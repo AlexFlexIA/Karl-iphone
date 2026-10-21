@@ -260,5 +260,17 @@ class MealTests(unittest.TestCase):
         self.assertEqual(waiting, ['Lait'])
 
 
+    def test_reopening_a_weekly_task_keeps_a_copy_already_worked_on_linked(self):
+        task = self.post('tasks', {'title': 'Lit', 'repeat': 'weekly', 'due_date': '2026-11-02'}).json()['id']
+        change = lambda task_id, body: self.client.patch('/api/family/tasks/' + task_id, headers=self.headers, json=body)
+        change(task, {'version': 1, 'done': True}).raise_for_status()
+        copy = next(t for t in self.client.get('/api/family/tasks').json()['tasks'] if t['id'] != task)
+        change(copy['id'], {'version': 1, 'done': True}).raise_for_status()
+        change(task, {'version': 2, 'done': False}).raise_for_status()
+        change(task, {'version': 3, 'done': True}).raise_for_status()
+        dates = sorted(t['due_date'] for t in self.client.get('/api/family/tasks').json()['tasks'])
+        self.assertEqual(dates.count('2026-11-09'), 1)
+
+
 if __name__ == '__main__':
     unittest.main()

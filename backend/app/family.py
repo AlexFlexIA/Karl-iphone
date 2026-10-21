@@ -92,6 +92,8 @@ def items(user=Depends(member)):
 def add_item(body: ItemInput, user=Depends(member)):
     item_id = str(uuid4())
     with database() as db, db:
+        # Serialised so two phones adding « Lait » at once cannot both pass the duplicate check.
+        db.execute("BEGIN IMMEDIATE")
         # The same product still to buy is not added twice: the existing line is returned instead.
         existing = waiting_item(db, body.name)
         if existing:
@@ -440,8 +442,11 @@ def recur(db, row, finished):
                    (next_id, (date.fromisoformat(row["due_date"]) + timedelta(days=7)).isoformat(), remind, row["id"]))
         db.execute("UPDATE family_tasks SET next_id=? WHERE id=?", (next_id, row["id"]))
     elif not finished and row["next_id"]:
-        db.execute("UPDATE family_tasks SET deleted=1,version=version+1 WHERE id=? AND done=0 AND submitted_by IS NULL", (row["next_id"],))
-        db.execute("UPDATE family_tasks SET next_id=NULL WHERE id=?", (row["id"],))
+        withdrawn = db.execute("UPDATE family_tasks SET deleted=1,version=version+1 WHERE id=? AND done=0 AND submitted_by IS NULL",
+                               (row["next_id"],)).rowcount
+        # A copy someone already worked on stays, and stays linked, so ticking again does not create a second one.
+        if withdrawn:
+            db.execute("UPDATE family_tasks SET next_id=NULL WHERE id=?", (row["id"],))
 
 
 def ical_text(value):

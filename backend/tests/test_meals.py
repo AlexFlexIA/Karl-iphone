@@ -116,13 +116,16 @@ class MealTests(unittest.TestCase):
         edit = lambda version: self.client.put('/api/family/recipes/' + recipe, headers=self.headers,
                                                json={'title': 'Velouté', 'servings': 2, 'ingredients': ['500 g de carottes'], 'version': version})
         self.assertEqual(edit(1).status_code, 200)
+        change = lambda version: self.client.put('/api/family/meals/' + meal, headers=self.headers, json={'version': version, 'slot': 'lunch', 'servings': 6})
+        self.assertEqual(change(1).status_code, 200)
+        self.assertEqual(change(1).status_code, 409)
         self.assertEqual(edit(1).status_code, 409)
         meals = self.client.get('/api/family/meals?first=2026-11-02&last=2026-11-02').json()['meals']
         self.assertEqual([(row['title'], row['has_recipe']) for row in meals], [('Velouté', True)])
         self.assertEqual(self.client.patch('/api/family/recipes/' + recipe, headers=self.headers, json={'version': 2, 'deleted': True}).status_code, 200)
         self.assertEqual(self.client.get('/api/family/recipes').json()['recipes'], [])
         self.assertEqual(self.client.get('/api/family/meals?first=2026-11-02&last=2026-11-02').json()['meals'][0]['has_recipe'], False)
-        self.assertEqual(self.client.patch('/api/family/meals/' + meal, headers=self.headers, json={'version': 1, 'deleted': True}).status_code, 200)
+        self.assertEqual(self.client.patch('/api/family/meals/' + meal, headers=self.headers, json={'version': 2, 'deleted': True}).status_code, 200)
         self.assertEqual(self.client.post('/api/family/recipes', headers={'Origin': 'http://localhost'}, json={'title': 'x'}).status_code, 403)
 
 

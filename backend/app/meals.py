@@ -243,6 +243,26 @@ def add_meal(body: MealInput, user=Depends(member)):
     return {"id": meal_id}
 
 
+class MealEdit(BaseModel):
+    version: int = Field(ge=1)
+    slot: SLOTS
+    servings: int = Field(ge=1, le=30)
+
+
+@router.put("/meals/{meal_id}")
+def edit_meal(meal_id: str, body: MealEdit, user=Depends(member)):
+    with database() as db, db:
+        row = db.execute("SELECT * FROM family_meals WHERE id=? AND deleted=0", (meal_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Repas introuvable.")
+        owned(row, user, "ce repas")
+        cursor = db.execute("UPDATE family_meals SET slot=?,servings=?,version=version+1 WHERE id=? AND version=?",
+                            (body.slot, body.servings, meal_id, body.version))
+        if cursor.rowcount != 1:
+            raise HTTPException(409, "Ce repas a changé sur un autre appareil. Actualisez puis réessayez.")
+    return {"ok": True}
+
+
 @router.patch("/meals/{meal_id}")
 def remove_meal(meal_id: str, body: Change, user=Depends(member)):
     with database() as db, db:

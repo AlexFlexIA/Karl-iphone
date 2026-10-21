@@ -7,10 +7,10 @@ import { capitalize, clock, dateKey, longDate, plural } from './model'
 import { Empty, Person, ScreenHead, Skeleton } from './ui'
 
 type Proposal = {
-  kind?: 'event' | 'task' | 'item' | 'memory' | 'meal'; title: string; event_id?: string | null; ref?: string | null
+  kind?: 'event' | 'task' | 'item' | 'memory' | 'meal' | 'recipe'; title: string; event_id?: string | null; ref?: string | null
   starts_at?: string; ends_at?: string; location?: string; attendees?: string[]
   due_date?: string | null; assignee_id?: string | null; quantity?: string; category?: string
-  day?: string; slot?: 'lunch' | 'dinner'; servings?: number
+  day?: string; slot?: 'lunch' | 'dinner'; servings?: number; ingredients?: string[]; notes?: string
 }
 // Older replies only carried calendar proposals, without a kind.
 const kindOf = (proposal: Proposal) => proposal.kind ?? 'event'
@@ -19,6 +19,7 @@ const verbs = {
   event: { action: 'Ajouter au planning', done: 'Ajouté au planning', icon: 'calendar' },
   task: { action: 'Créer la tâche', done: 'Tâche créée', icon: 'check' },
   item: { action: 'Ajouter aux courses', done: 'Ajouté aux courses', icon: 'cart' },
+  recipe: { action: 'Ajouter au carnet', done: 'Ajoutée au carnet de recettes', icon: 'edit' },
   meal: { action: 'Prévoir ce repas', done: 'Ajouté au menu', icon: 'list' },
   memory: { action: 'Retenir', done: 'Retenu · modifiable dans « Moi »', icon: 'key' },
 } as const
@@ -143,6 +144,11 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
                 </>}
                 {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {longDate(proposal.due_date)}</span>}</p>}
                 {kind === 'meal' && proposal.day && <p className="row-meta"><span>{capitalize(longDate(proposal.day))} · {proposal.slot === 'lunch' ? 'midi' : 'soir'}</span><span>{plural(proposal.servings ?? 4, 'personne')}</span></p>}
+                {kind === 'recipe' && <>
+                  <p className="row-meta"><span>{plural(proposal.servings ?? 4, 'personne')}</span><span>{plural(proposal.ingredients?.length ?? 0, 'ingrédient')}</span></p>
+                  <details><summary className="btn-quiet">Voir les ingrédients</summary><ul className="proposal-list">{(proposal.ingredients ?? []).map((line, at) => <li key={at}>{line}</li>)}</ul>
+                    {proposal.notes && <p className="bubble-text">{proposal.notes}</p>}</details>
+                </>}
                 {kind === 'item' && <p className="row-meta">{proposal.quantity && <strong>{proposal.quantity}</strong>}<span>{proposal.category}</span></p>}
                 {doneOf(proposal) ? <p className="proposal-done"><Icon name="check" />{verbs[kind].done}</p>
                   : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />{verbs[kind].action}</button>}

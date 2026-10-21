@@ -528,3 +528,6 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 /* Long first names and summaries wrap inside the header instead of running under its edge on 320 px screens. */
 .fam .screen-head > div{min-width:0;max-width:100%}
 .fam .screen-head h1{overflow-wrap:anywhere;hyphens:auto}
+.dish-open{display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:44px;padding:var(--s1) 0;text-align:left}
+.dish-open .row-title{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.proposal-list{list-style:disc;padding-left:var(--s5);margin:var(--s2) 0}

@@ -7,7 +7,7 @@ import { addDays, capitalize, dateKey, longDate, monday, plural, shortDate } fro
 import { Empty, Sheet, Skeleton } from './ui'
 
 const slots: [Slot, string][] = [['lunch', 'Midi'], ['dinner', 'Soir']]
-type Open = { kind: 'meal'; day: string; slot: Slot } | { kind: 'recipe'; recipe: Recipe | null } | { kind: 'view'; recipe: Recipe } | { kind: 'shopping' } | null
+type Open = { kind: 'meal'; day: string; slot: Slot } | { kind: 'recipe'; recipe: Recipe | null } | { kind: 'view'; recipe: Recipe } | { kind: 'edit'; meal: Meal } | { kind: 'shopping' } | null
 
 // The family menu for one week, the recipe book behind it, and the list it adds up to.
 export function Meals({ ctx }: { ctx: Ctx }) {
@@ -60,8 +60,12 @@ export function Meals({ ctx }: { ctx: Ctx }) {
             <span className="menu-slot-name">{name}</span>
             <ul className="menu-dishes">
               {planned.map(meal => <li key={meal.id} className="menu-dish">
-                <span><span className="row-title">{meal.title}</span>
-                  <span className="row-meta"><span>{plural(meal.servings, 'personne')}</span>{!meal.has_recipe && <span>sans recette</span>}</span></span>
+                {ctx.canManage(meal.created_by)
+                  ? <button className="dish-open" disabled={ctx.disabled} onClick={() => setOpen({ kind: 'edit', meal })} aria-label={`${meal.title}, ${plural(meal.servings, 'personne')}. Modifier`}>
+                    <span className="row-title">{meal.title}</span>
+                    <span className="row-meta"><span>{plural(meal.servings, 'personne')}</span>{!meal.has_recipe && <span>sans recette</span>}</span></button>
+                  : <span><span className="row-title">{meal.title}</span>
+                    <span className="row-meta"><span>{plural(meal.servings, 'personne')}</span>{!meal.has_recipe && <span>sans recette</span>}</span></span>}
                 {ctx.canManage(meal.created_by) && <button className="icon-btn" aria-label={`Retirer ${meal.title}, ${longDate(day)} ${name.toLowerCase()}`} disabled={ctx.disabled}
                   onClick={() => ctx.remove('meals/' + meal.id, meal.version, meal.title)}><Icon name="trash" /></button>}
               </li>)}
@@ -91,7 +95,8 @@ export function Meals({ ctx }: { ctx: Ctx }) {
     </section>
 
     <Sheet open={!!open} title={open?.kind === 'meal' ? `${capitalize(longDate(open.day))} · ${open.slot === 'lunch' ? 'midi' : 'soir'}`
-      : open?.kind === 'recipe' ? (open.recipe ? 'Modifier la recette' : 'Nouvelle recette') : open?.kind === 'view' ? open.recipe.title : 'Courses du menu'} onClose={close}>
+      : open?.kind === 'recipe' ? (open.recipe ? 'Modifier la recette' : 'Nouvelle recette') : open?.kind === 'view' ? open.recipe.title : open?.kind === 'edit' ? open.meal.title : 'Courses du menu'} onClose={close}>
+      {open?.kind === 'edit' && <MealEdit key={open.meal.id} ctx={ctx} meal={open.meal} onDone={() => { close(); void load() }} />}
       {open?.kind === 'view' && <RecipeView recipe={open.recipe} family={ctx.members.length}
         onEdit={ctx.canManage(open.recipe.created_by) ? () => setOpen({ kind: 'recipe', recipe: open.recipe }) : undefined} />}
       {open?.kind === 'meal' && <MealForm key={open.day + open.slot} ctx={ctx} recipes={recipes ?? []} day={open.day} slot={open.slot} onDone={() => { close(); void load() }}
@@ -234,4 +239,27 @@ function RecipeView({ recipe, family, onEdit }: { recipe: Recipe; family: number
     {people !== recipe.servings && <p className="note"><Icon name="alert" />Quantités recalculées depuis la recette pour {plural(recipe.servings, 'personne')}.</p>}
     {onEdit && <div className="sheet-actions"><span /><button className="btn btn-secondary" onClick={onEdit}><Icon name="edit" />Modifier</button></div>}
   </div>
+}
+
+function MealEdit({ ctx, meal, onDone }: { ctx: Ctx; meal: Meal; onDone: () => void }) {
+  const [slot, setSlot] = useState<Slot>(meal.slot)
+  const [servings, setServings] = useState(meal.servings)
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (await ctx.run(async () => {
+      await ctx.api('family/meals/' + meal.id, { method: 'PUT', body: JSON.stringify({ version: meal.version, slot, servings }) })
+    }, 'Repas modifié.')) onDone()
+  }
+  return <form className="sheet-body" onSubmit={save}>
+    <p className="muted">{capitalize(longDate(meal.day))}</p>
+    <fieldset className="chips"><legend className="sr-only">Moment</legend>
+      {slots.map(([value, name]) => <label key={value} className="chip"><input type="radio" name="slot" checked={slot === value} onChange={() => setSlot(value)} />{name}</label>)}
+    </fieldset>
+    <div className="field field-narrow"><label htmlFor="edit-servings">Nombre de personnes</label>
+      <input id="edit-servings" type="number" inputMode="numeric" min={1} max={30} value={servings} onChange={event => setServings(Math.max(1, Math.min(30, Number(event.target.value) || 1)))} /></div>
+    <div className="sheet-actions">
+      <button type="button" className="btn btn-danger" disabled={ctx.disabled} onClick={() => { ctx.remove('meals/' + meal.id, meal.version, meal.title); onDone() }}><Icon name="trash" />Retirer</button>
+      <button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button>
+    </div>
+  </form>
 }

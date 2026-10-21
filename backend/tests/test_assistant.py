@@ -210,5 +210,18 @@ class AssistantTests(unittest.TestCase):
                          [('2026-11-02', 'Crêpes', 5, True), ('2026-11-03', 'Salade', 4, False)])
 
 
+    def test_recipe_proposals_are_parsed_before_reaching_the_book(self):
+        text = ('```karl-recipe\n{"title": "Velouté", "servings": 2, "ingredients": ["500 g de carottes", "1 oignon"], "notes": "Mixer."}\n```'
+                '\n```karl-recipe\n{"title": "Illisible", "ingredients": ["200 g"]}\n```')
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertEqual([p['title'] for p in reply['proposals']], ['Velouté'])
+        self.assertEqual(self.client.get('/api/family/recipes').json()['recipes'], [])
+        self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0}).raise_for_status()
+        [recipe] = self.client.get('/api/family/recipes').json()['recipes']
+        self.assertEqual((recipe['title'], recipe['servings'], recipe['notes']), ('Velouté', 2, 'Mixer.'))
+        self.assertEqual([(i['name'], i['quantity'], i['unit']) for i in recipe['ingredients']], [('carottes', 500.0, 'g'), ('oignon', 1.0, '')])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences
 from .family_auth import member
-from .meals import MealInput
+from .meals import MealInput, RecipeInput, ingredients_of
 from .store import database
 
 router = APIRouter(prefix="/api/family/assistant")
-PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal)\s*\n(.*?)```", re.S)
+PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal|recipe)\s*\n(.*?)```", re.S)
 # Enough for a week of dinners in one reply.
 MAX_PROPOSALS = 10
 MAX_MEMORY = 50
@@ -94,7 +94,7 @@ async def complete(messages):
 RULES = [
     "Ce que tu peux faire seul : répondre, expliquer, organiser, suggérer.",
     "Ce qui demande toujours un toucher de confirmation du membre dans KARL : ajouter au planning, créer une tâche,"
-    " ajouter un article aux courses, prévoir un repas, retenir une information. Tu ne fais que proposer, avec les blocs ci-dessous.",
+    " ajouter un article aux courses, prévoir un repas, ajouter une recette au carnet, retenir une information. Tu ne fais que proposer, avec les blocs ci-dessous.",
     "Ce que tu ne fais jamais : acheter ou commander (y compris sur un drive), envoyer un e-mail ou un message,"
     " supprimer un fichier, un dossier ou une donnée. Si on te le demande, explique que KARL ne te donne pas ce droit"
     " et propose de préparer la liste ou le brouillon à la place.",
@@ -157,9 +157,13 @@ def briefing(db, user):
         "```karl-meal",
         '{"day": "2026-10-22", "slot": "soir", "title": "Crêpes", "servings": 4}',
         "```",
+        "```karl-recipe",
+        '{"title": "Crêpes", "servings": 4, "ingredients": ["250 g de farine", "4 œufs", "50 cl de lait", "sel"], "notes": "Mélanger, laisser reposer 1 h."}',
+        "```",
         "```karl-memory",
         '{"text": "Préfère les rappels le matin"}',
         "```",
+        "Une recette : un ingrédient par ligne, quantité puis unité puis produit, comme dans l’exemple.",
         "Pour un repas, slot vaut midi ou soir ; reprends le titre exact d’une recette du carnet quand il y en a une,"
         " sinon KARL l’ajoute comme plat sans recette.",
         "Dates ISO avec fuseau. Rayons possibles : Fruits et légumes, Frais, Épicerie, Maison, Autres.",
@@ -192,6 +196,12 @@ def proposal(kind, raw, user, names):
         if not meal.title.strip():
             raise ValueError("no dish")
         return {"kind": "meal", "title": meal.title.strip(), "day": meal.day.isoformat(), "slot": meal.slot, "servings": meal.servings, "ref": None}
+    if kind == "recipe":
+        recipe = RecipeInput(title=raw.get("title", ""), servings=raw.get("servings") or 4, notes=raw.get("notes") or "",
+                             ingredients=[line for line in raw.get("ingredients") or [] if isinstance(line, str)])
+        ingredients_of(recipe)
+        return {"kind": "recipe", "title": recipe.title, "servings": recipe.servings, "ingredients": recipe.ingredients,
+                "notes": recipe.notes.strip(), "ref": None}
     text = raw.get("text")
     if not isinstance(text, str) or not text.strip() or len(text) > 300:
         raise ValueError("bad memory")
@@ -205,7 +215,7 @@ def proposals(db, user, reply):
     for kind, block in PROPOSAL.findall(reply)[:MAX_PROPOSALS]:
         try:
             found.append(proposal(kind, json.loads(block), user, names))
-        except (ValueError, TypeError, AttributeError, ValidationError):
+        except (ValueError, TypeError, AttributeError, ValidationError, HTTPException):
             continue
     text = PROPOSAL.sub("", reply).strip()
     return text or ("Je te propose ceci :" if found else reply.strip()), found
@@ -322,7 +332,7 @@ def accept(message_id: int, body: Confirm, user=Depends(allowed)):
         done = chosen.get("event_id") if kind == "event" else chosen.get("ref")
         if done:
             return {"id": done}
-        made = {"event": make_event, "task": make_task, "item": make_item, "memory": make_memory, "meal": make_meal}[kind](db, chosen, user)
+        made = {"event": make_event, "task": make_task, "item": make_item, "memory": make_memory, "meal": make_meal, "recipe": make_recipe}[kind](db, chosen, user)
         chosen["event_id" if kind == "event" else "ref"] = made
         db.execute("UPDATE family_thread_messages SET proposals=? WHERE id=?", (json.dumps(found), message_id))
     return {"id": made}
@@ -372,6 +382,17 @@ def make_meal(db, proposal, user):
                (meal_id, proposal["day"], proposal["slot"], recipe["id"] if recipe else None, recipe["title"] if recipe else proposal["title"],
                 proposal["servings"], user["id"]))
     return meal_id
+
+
+def make_recipe(db, proposal, user):
+    recipe = RecipeInput(**{key: proposal[key] for key in ("title", "servings", "ingredients", "notes")})
+    if db.execute("SELECT COUNT(*) FROM family_recipes WHERE deleted=0").fetchone()[0] >= 500:
+        raise HTTPException(409, "Le carnet de recettes est plein. Retirez d’anciennes recettes.")
+    recipe_id = str(uuid4())
+    db.execute("INSERT INTO family_recipes(id,title,servings,ingredients,notes,created_by,updated_at) VALUES(?,?,?,?,?,?,?)",
+               (recipe_id, recipe.title, recipe.servings, json.dumps(ingredients_of(recipe), ensure_ascii=False), recipe.notes.strip(),
+                user["id"], now()))
+    return recipe_id
 
 
 def make_memory(db, proposal, user):

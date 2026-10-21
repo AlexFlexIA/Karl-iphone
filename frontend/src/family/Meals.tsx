@@ -207,7 +207,8 @@ function ShoppingPreview({ ctx, path, target, extra, intro, onDone }: {
   if (problem) return <div className="sheet-body"><p className="banner banner-error" role="alert"><Icon name="alert" /><span>{problem}</span></p></div>
   if (!lines) return <div className="sheet-body" aria-busy="true"><Skeleton lines={5} /></div>
   const fresh = lines.filter(line => !line.on_list)
-  return <div className="sheet-body">
+  // Focusable so the list scrolls from the keyboard even when every line is already listed and disabled.
+  return <div className="sheet-body" tabIndex={0} role="region" aria-label="Ingrédients à ajouter">
     <p className="muted">{intro(without)}</p>
     {!lines.length ? <Empty title="Aucun ingrédient à prévoir." /> : <ul className="rows">
       {lines.map(line => <li className="row" key={line.key}>

@@ -117,4 +117,4 @@ Sur une instance de test (`KARL_PREVIEW=1`, base séparée), sans toucher à la 
 
 `cd backend && .venv/bin/python -m unittest discover -s tests -v` puis `cd frontend && npm run build`.
 
-Tests isolés, sans Google réel ni lancement Hermes. Installation iPhone : Safari → Partager → Sur l’écran d’accueil, depuis une adresse HTTPS accessible. Le service worker conserve uniquement le cadre public, jamais les API. Aucun déploiement ou changement du gateway Hermes/Telegram par ce code.
+Tests isolés, sans Google réel ni lancement Hermes. Parcours navigateur facultatif (Playwright installé à part) : lancer une instance de test **sur une base vide** puis `cd frontend && KARL_URL=http://127.0.0.1:18000 KARL_ACCESS_TOKEN=… node e2e/smoke.mjs` (recette, repas, quantités, doublon, tâche hebdomadaire, mémoire, débordement, erreurs JavaScript). Installation iPhone : Safari → Partager → Sur l’écran d’accueil, depuis une adresse HTTPS accessible. Le service worker conserve uniquement le cadre public, jamais les API. Aucun déploiement ou changement du gateway Hermes/Telegram par ce code.

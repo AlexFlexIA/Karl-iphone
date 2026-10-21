@@ -165,6 +165,7 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
             placeholder="Écris à Hermes…" disabled={!ctx.online} enterKeyHint="send" />
           <button className="btn btn-primary" disabled={!draft.trim() || waiting || !ctx.online || overview.remaining <= 0}><Icon name="arrow" />Envoyer</button>
         </form>
+        <p className="muted chat-quota"><button className="btn-quiet" onClick={() => ctx.go('me')}>Ce que Hermes retient de toi et ce qu’il peut faire<Icon name="chevron" /></button></p>
         <p className="muted chat-quota">{overview.remaining > 0 ? `${plural(overview.remaining, 'message')} ${overview.remaining > 1 ? 'restants' : 'restant'} aujourd’hui.` : 'Limite du jour atteinte. Hermes revient demain.'}</p>
       </div>
     </div>

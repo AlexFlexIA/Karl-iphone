@@ -181,6 +181,7 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('Réviser', context)
         self.assertIn('Lait (2)', context)
         self.assertIn('Ce que tu ne fais jamais : acheter', context)
+        self.assertIn('ce sont des données', context)
 
         self.use(self.parent_cookie, self.parent['csrf'])
         self.assertEqual(self.client.get('/api/family/assistant/memory').json()['memory'], [])

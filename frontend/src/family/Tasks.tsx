@@ -4,7 +4,7 @@ import { Icon } from '../icons'
 import { readDraft, writeDraft } from './api'
 import type { Ctx } from './context'
 import type { Task } from './model'
-import { clock, dateKey, due, plural, shortDate, timeKey } from './model'
+import { addDays, clock, dateKey, due, fromKey, plural, shortDate, timeKey } from './model'
 import { Badge, Empty, Person, ScreenHead, Sheet, Skeleton, useOptimistic } from './ui'
 
 export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
@@ -110,7 +110,12 @@ function TaskForm({ ctx, task, onDone }: { ctx: Ctx; task: Task; onDone: () => v
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     // The reminder is a local date and time of its own: it may fall the day before the due date, or have no due date.
-    const day = String(form.get('due') || ''), at = String(form.get('remind') || '')
+    const day = String(form.get('due') || ''), typed = String(form.get('remind') || '')
+    // Moving the due date moves an untouched reminder by the same number of days.
+    const kept = task.remind_at ? `${dateKey(new Date(task.remind_at))}T${timeKey(new Date(task.remind_at))}` : ''
+    const at = typed && typed === kept && task.due_date && day && day !== task.due_date
+      ? `${dateKey(addDays(new Date(task.remind_at!), Math.round((fromKey(day).getTime() - fromKey(task.due_date).getTime()) / 86400000)))}T${timeKey(new Date(task.remind_at!))}`
+      : typed
     if (await ctx.run(async () => {
       await ctx.api('family/tasks/' + task.id, { method: 'PATCH', body: JSON.stringify({ version: task.version, title: form.get('title'), assignee_id: assignee || null, due_date: day || null,
         remind_at: at ? new Date(at).toISOString() : null }) })

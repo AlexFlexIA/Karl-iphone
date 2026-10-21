@@ -49,8 +49,10 @@ function Lanes({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; day: str
     // On narrow screens, open the lanes on "now" (or the first activity) rather than at dawn, once per day shown:
     // the clock ticking or a refresh must not pull back someone scrolling to the evening.
     const node = scroller.current
-    if (!node || centred.current === day) return
-    centred.current = day
+    // Re-centred when the day or its hour range changes (an activity added at 6:00), not when the clock ticks.
+    const view = `${day}|${first}|${span}`
+    if (!node || centred.current === view) return
+    centred.current = view
     const track = node.scrollWidth - 104
     node.scrollLeft = Math.max(0, ((focusHour - first) / span) * track - 32)
   }, [day, first, span, focusHour])

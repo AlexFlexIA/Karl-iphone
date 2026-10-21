@@ -114,7 +114,6 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
   }
 
   function go(next: View) {
-    if (next === 'today' && dateKey(week) !== dateKey(monday(new Date()))) { setData(null); setWeek(monday(new Date())) }
     setView(next); setError(''); setNotice(''); window.scrollTo({ top: 0 })
     document.getElementById('main')?.focus({ preventScroll: true })
   }

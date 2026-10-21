@@ -23,7 +23,8 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
   const invited = [...new Set([...attendees, driver])].filter(id => id && id !== creator)
   // The end day is chosen, not guessed: a trip keeps its length, and an overnight activity can become a same-day one.
   const span = start && end ? Math.round((fromKey(dateKey(end)).getTime() - fromKey(dateKey(start)).getTime()) / 86400000) : 0
-  const [later, setLater] = useState(span)
+  // An overnight activity under 24 h starts on « same day » so the automatic next-day rule follows the hours typed.
+  const [later, setLater] = useState(span === 1 && end && start && timeKey(end) <= timeKey(start) ? 0 : span)
   const overnight = later === 0 && to <= from
   const endDay = overnight ? 1 : later
 
@@ -55,7 +56,7 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
     <div className="field field-narrow"><label htmlFor="event-days">Jour de fin</label>
       <select id="event-days" value={later} onChange={change => setLater(Number(change.target.value))}>
         <option value={0}>Le même jour{to <= from ? ' (ou le lendemain si la fin précède le début)' : ''}</option>
-        {[1, 2, 3, 4, 5, 6].map(count => <option key={count} value={count}>{count === 1 ? 'Le lendemain' : `${count} jours plus tard`}</option>)}
+        {[1, 2, 3, 4, 5, 6, 7].map(count => <option key={count} value={count}>{count === 1 ? 'Le lendemain' : `${count} jours plus tard`}</option>)}
       </select></div>
     {endDay > 0 && <p className="note" id="event-overnight"><Icon name="clock" />Se termine {endDay === 1 ? 'le lendemain' : 'le ' + longDate(dateKey(addDays(fromKey(date), endDay)))} à {to}.</p>}
     <fieldset className="chips"><legend>Qui participe ?</legend>

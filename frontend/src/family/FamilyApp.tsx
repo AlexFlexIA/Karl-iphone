@@ -44,6 +44,7 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
   const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null)
   const [inviteToken, setInviteToken] = useState(() => new URLSearchParams(location.hash.slice(1)).get('invitation') ?? '')
   const mounted = useRef(true)
+  const reminded = useRef(new Set<string>())
   const scope = useRef('')
   const user = session?.user ?? null
   scope.current = `${user?.id ?? ''}|${dateKey(week)}`
@@ -119,12 +120,18 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
   }
   function changeWeek(next: Date) { setData(null); setWeek(monday(next)) }
 
+  // On the home screen the week follows the calendar, so Monday morning shows Monday even if KARL stayed open since Sunday.
+  useEffect(() => {
+    if (view === 'today' && dateKey(monday(now)) !== dateKey(week)) { setData(null); setWeek(monday(now)) }
+  }, [view, now, week])
+
   // Reminders fire while KARL is open: a toast, plus a system notification if this device allowed it.
   useEffect(() => {
     if (!user || !data) return
-    let seen: string[] = []
-    try { seen = JSON.parse(localStorage.getItem('karl-reminded') ?? '[]') } catch { /* Storage blocked: may repeat once. */ }
+    let seen: string[] = [...reminded.current]
+    try { seen = [...seen, ...JSON.parse(localStorage.getItem('karl-reminded') ?? '[]')] } catch { /* Storage blocked: memory still stops repeats. */ }
     const fresh = data.tasks.filter(task => remindsMe(task, user.id) && new Date(task.remind_at!) <= now && !seen.includes(task.id + task.remind_at))
+    for (const task of fresh) reminded.current.add(task.id + task.remind_at)
     if (!fresh.length) return
     setNotice(fresh.length > 1 ? `Rappels : ${fresh.map(task => task.title).join(', ')}` : `Rappel : ${fresh[0].title}`)
     if ('Notification' in window && Notification.permission === 'granted' && readPreference('notifications') === 'on') {

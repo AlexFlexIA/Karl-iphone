@@ -532,3 +532,4 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .dish-open .row-title{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .proposal-list{list-style:disc;padding-left:var(--s5);margin:var(--s2) 0}
 .recipe-search{margin:var(--s3) 0}
+.basket-clear{margin-top:var(--s3)}

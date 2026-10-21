@@ -109,6 +109,28 @@ def update_item(item_id: str, body: ItemChange, user=Depends(member)):
     return {"ok": True}
 
 
+@router.post("/items/clear")
+def clear_basket(user=Depends(member)):
+    """After shopping: every ticked item leaves the list at once; the ids come back so the tap can be undone."""
+    with database() as db, db:
+        ids = [row["id"] for row in db.execute("SELECT id FROM family_items WHERE deleted=0 AND checked=1")]
+        db.executemany("UPDATE family_items SET deleted=1,version=version+1,updated_by=?,updated_at=? WHERE id=?",
+                       [(user["id"], now(), item_id) for item_id in ids])
+    return {"ids": ids}
+
+
+class Restore(BaseModel):
+    ids: list[str] = Field(max_length=2000)
+
+
+@router.post("/items/restore")
+def restore_basket(body: Restore, user=Depends(member)):
+    with database() as db, db:
+        db.executemany("UPDATE family_items SET deleted=0,version=version+1,updated_by=?,updated_at=? WHERE id=? AND deleted=1 AND checked=1",
+                       [(user["id"], now(), item_id) for item_id in body.ids])
+    return {"ok": True}
+
+
 class EventInput(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     starts_at: datetime

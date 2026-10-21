@@ -44,6 +44,14 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   const pending = items.filter(item => !item.checked)
   const basket = items.filter(item => item.checked)
   const [editing, setEditing] = useState<Item | null>(null)
+  const [cleared, setCleared] = useState<string[]>([])
+  async function clearBasket() {
+    let ids: string[] = []
+    if (await ctx.run(async () => { ids = (await ctx.api('family/items/clear', { method: 'POST' })).ids })) setCleared(ids)
+  }
+  async function restore() {
+    if (await ctx.run(async () => { await ctx.api('family/items/restore', { method: 'POST', body: JSON.stringify({ ids: cleared }) }) }, 'Panier remis dans la liste.')) setCleared([])
+  }
   const row = (item: Item) => <ItemRow ctx={ctx} item={item} key={item.id} onEdit={() => setEditing(item)} />
   const [mode, setMode] = useState<'list' | 'meals'>(() => readPreference('shopping-mode') === 'meals' ? 'meals' : 'list')
   const choose = (next: 'list' | 'meals') => { setMode(next); writePreference('shopping-mode', next) }
@@ -81,12 +89,16 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
     })}
     {pending.length > 0 && <p className="footnote"><button className="btn-quiet" onClick={copyForDrive}><Icon name="copy" />Copier la liste pour le Drive</button><br />
       Le panier E.Leclerc Drive n’est pas encore relié à KARL : rien n’est commandé ni acheté depuis cet écran.</p>}
+    {cleared.length > 0 && <div className="banner banner-info" role="status"><Icon name="check" /><span>{plural(cleared.length, 'article')} retiré{cleared.length > 1 ? 's' : ''} de la liste.</span>
+      <button className="btn btn-secondary btn-small" disabled={ctx.disabled} onClick={() => void restore()}>Annuler</button>
+      <button className="icon-btn" aria-label="Fermer le message" onClick={() => setCleared([])}><Icon name="close" /></button></div>}
     <Sheet open={!!editing} title="Modifier l’article" onClose={() => setEditing(null)}>
       {editing && <ItemForm key={editing.id} ctx={ctx} item={editing} onDone={() => setEditing(null)} />}
     </Sheet>
     {basket.length > 0 && <details className="group done-group" open={!pending.length}>
       <summary className="group-title">Dans le panier<span>{basket.length}</span></summary>
       <ul className="rows">{basket.map(row)}</ul>
+      <button className="btn btn-secondary btn-small basket-clear" disabled={ctx.disabled} onClick={() => void clearBasket()}><Icon name="trash" />Vider le panier ({basket.length})</button>
     </details>}
   </section>
 }

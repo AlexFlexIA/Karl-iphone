@@ -199,5 +199,16 @@ class MealTests(unittest.TestCase):
         self.assertEqual(change({'version': 2, 'done': True}).status_code, 200)
 
 
+    def test_clearing_the_basket_removes_only_ticked_items_and_can_be_undone(self):
+        ids = [self.post('items', {'name': name}).json()['id'] for name in ('Pain', 'Beurre', 'Jambon')]
+        for item_id in ids[:2]:
+            self.client.patch('/api/family/items/' + item_id, headers=self.headers, json={'version': 1, 'checked': True}).raise_for_status()
+        names = lambda: sorted(item['name'] for item in self.client.get('/api/family/items').json()['items'])
+        cleared = self.post('items/clear', {}).json()['ids']
+        self.assertEqual((sorted(cleared), names()), (sorted(ids[:2]), ['Jambon']))
+        self.post('items/restore', {'ids': cleared}).raise_for_status()
+        self.assertEqual(names(), ['Beurre', 'Jambon', 'Pain'])
+
+
 if __name__ == '__main__':
     unittest.main()

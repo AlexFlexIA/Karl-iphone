@@ -99,6 +99,8 @@ export function Planning({ ctx, week, setWeek, day, setDay }: { ctx: Ctx; week: 
   const days = Array.from({ length: 7 }, (_, index) => dateKey(addDays(week, index)))
   const events = ctx.data?.events ?? []
   const ofDay = events.filter(event => eventDay(event) === day || (new Date(event.starts_at) < fromKey(day) && new Date(event.ends_at) > fromKey(day)))
+  const dishes = ([['lunch', 'midi'], ['dinner', 'soir']] as const).map(([slot, name]) => [name, (ctx.data?.meals ?? []).filter(meal => meal.day === day && meal.slot === slot).map(meal => meal.title).join(', ')] as const)
+    .filter(([, titles]) => titles)
   const choose = (next: 'list' | 'lanes') => { setMode(next); writePreference('planning-mode', next) }
   const shift = (weeks: number) => { const next = addDays(week, weeks * 7); setWeek(next); setDay(dateKey(next)) }
 
@@ -129,6 +131,7 @@ export function Planning({ ctx, week, setWeek, day, setDay }: { ctx: Ctx; week: 
       </div>
     </div>
     {!ctx.data ? <Skeleton lines={4} /> : mode === 'lanes' ? <Lanes ctx={ctx} events={ofDay} day={day} /> : <Thread ctx={ctx} events={ofDay} day={day} />}
+    {ctx.data && dishes.length > 0 && <p className="planning-meals"><Icon name="list" /><span><strong>Au menu</strong> · {dishes.map(([name, titles]) => `${name} : ${titles}`).join(' · ')}</span></p>}
     <p className="footnote"><a href="/api/family/calendar.ics" className="btn-quiet">Exporter les 9 prochaines semaines (.ics)<Icon name="share" /></a><br />Import ponctuel dans un autre agenda. Aucune synchronisation automatique.</p>
   </section>
 }

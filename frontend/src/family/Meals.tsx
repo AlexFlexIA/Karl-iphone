@@ -7,6 +7,12 @@ import { addDays, capitalize, dateKey, longDate, monday, plural, shortDate } fro
 import { Empty, Sheet, Skeleton } from './ui'
 
 const slots: [Slot, string][] = [['lunch', 'Midi'], ['dinner', 'Soir']]
+const fold = (value: string) => value.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+// Matches the title or any ingredient, ignoring case and accents: « oeuf » finds « Œufs » once folded.
+const found = (recipes: Recipe[], search: string) => {
+  const term = fold(search.trim())
+  return term ? recipes.filter(recipe => [recipe.title, ...recipe.ingredients.map(item => item.name)].some(text => fold(text).includes(term))) : recipes
+}
 type Open = { kind: 'meal'; day: string; slot: Slot } | { kind: 'recipe'; recipe: Recipe | null } | { kind: 'view'; recipe: Recipe } | { kind: 'edit'; meal: Meal } | { kind: 'shopping' } | { kind: 'recipe-shopping'; recipe: Recipe; servings: number } | null
 
 // The family menu for one week, the recipe book behind it, and the list it adds up to.
@@ -16,6 +22,7 @@ export function Meals({ ctx }: { ctx: Ctx }) {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null)
   const [problem, setProblem] = useState('')
   const [open, setOpen] = useState<Open>(null)
+  const [search, setSearch] = useState('')
   const days = Array.from({ length: 7 }, (_, index) => dateKey(addDays(week, index)))
   const first = days[0], last = days[6]
   const { api } = ctx
@@ -82,8 +89,11 @@ export function Meals({ ctx }: { ctx: Ctx }) {
         <h2 className="group-title grow" id="recipes-title">Recettes<span>{recipes?.length ?? ''}</span></h2>
         <button className="btn btn-secondary btn-small" disabled={ctx.disabled} onClick={() => setOpen({ kind: 'recipe', recipe: null })}><Icon name="plus" />Recette</button>
       </div>
+      {recipes && recipes.length > 6 && <div className="field recipe-search"><label htmlFor="recipe-search" className="sr-only">Chercher une recette</label>
+        <input id="recipe-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Chercher une recette ou un ingrédient…" autoComplete="off" /></div>}
       {!recipes ? <Skeleton lines={2} /> : !recipes.length ? <Empty title="Aucune recette pour l’instant.">Ajoutez vos plats habituels avec leurs ingrédients : KARL calculera les courses selon le nombre de personnes.</Empty>
-        : <ul className="rows">{recipes.map(recipe => <li className="row" key={recipe.id}>
+        : !found(recipes, search).length ? <p className="muted">Aucune recette ne correspond à « {search} ».</p>
+        : <ul className="rows">{found(recipes, search).map(recipe => <li className="row" key={recipe.id}>
           <button className="row-main row-open" onClick={() => setOpen({ kind: 'view', recipe })}><span className="row-text"><span className="row-title">{recipe.title}</span>
             <span className="row-meta"><span>{plural(recipe.servings, 'personne')}</span><span>{plural(recipe.ingredients.length, 'ingrédient')}</span></span></span>
             <Icon name="chevron" /></button>

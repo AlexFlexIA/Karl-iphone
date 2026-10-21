@@ -34,7 +34,9 @@ def number(token):
         return FRACTIONS[token]
     if "/" in token:
         top, bottom = token.split("/")
-        return Fraction(int(top), int(bottom)) if int(bottom) else None
+        if not int(bottom):
+            raise ValueError("division par zéro")
+        return Fraction(int(top), int(bottom))
     return Fraction(token.replace(",", "."))
 
 
@@ -44,7 +46,8 @@ def parse_line(line):
     if not text:
         return None
     quantity, unit, rest = None, "", text
-    match = re.match(r"(\d+(?:[.,]\d+)?|\d+/\d+|[½¼¾])\s*(.*)$", text)
+    # Fractions first: otherwise « 1/2 » would read as 1 followed by a product called « /2 ».
+    match = re.match(r"(\d+/\d+|\d+(?:[.,]\d+)?|[½¼¾])\s*(.*)$", text)
     if match:
         quantity, rest = number(match[1]), match[2]
         for pattern, canonical in UNITS:
@@ -55,7 +58,7 @@ def parse_line(line):
     rest = re.sub(r"^(?:de\s+|d['’]\s*|des\s+)", "", rest, flags=re.I).strip()
     if not rest or (quantity is not None and quantity <= 0):
         raise ValueError(text)
-    return {"line": text[:120], "name": rest[:120], "quantity": None if quantity is None else float(quantity),
+    return {"line": text[:200], "name": rest[:120], "quantity": None if quantity is None else float(quantity),
             "unit": unit, "category": aisle_of(rest)}
 
 

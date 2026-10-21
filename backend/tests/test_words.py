@@ -17,7 +17,11 @@ class WordTests(unittest.TestCase):
 
     def test_aisles(self):
         cases = {"Bananes": "Fruits et légumes", "Yaourts nature": "Frais", "Riz basmati": "Épicerie",
-                 "Liquide vaisselle": "Maison", "Papier cadeau": "Maison", "Bougies": "Autres", "": "Autres"}
+                 "Liquide vaisselle": "Maison", "Papier cadeau": "Maison", "Bougies": "Autres", "": "Autres",
+                 "Farine de blé": "Épicerie", "Sucre de canne": "Épicerie", "Huile de tournesol": "Épicerie", "Sel de mer": "Épicerie",
+                 "Lait de coco": "Épicerie", "Liquide de vaisselle": "Maison", "Gel de douche": "Maison", "Gel coiffant": "Autres",
+                 "Sauce tomate": "Épicerie", "Pommes de terre": "Fruits et légumes", "Pois chiches": "Épicerie",
+                 "Pâte feuilletée": "Frais", "Pâtes": "Épicerie", "Huile d’olive": "Épicerie", "Sacs poubelle": "Maison"}
         for name, aisle in cases.items():
             self.assertEqual(aisle_of(name), aisle, name)
 

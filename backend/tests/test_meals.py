@@ -18,6 +18,12 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual({key: parse_line("2 c. à s. d’huile d’olive")[key] for key in ("name", "quantity", "unit")},
                          {"name": "huile d’olive", "quantity": 2.0, "unit": "c. à s."})
         self.assertEqual(parse_line("½ citron")["quantity"], 0.5)
+        self.assertEqual({key: parse_line("1/2 citron")[key] for key in ("name", "quantity")}, {"name": "citron", "quantity": 0.5})
+        self.assertEqual(parse_line("3/4 l de lait")["unit"], "l")
+        with self.assertRaises((ValueError, ZeroDivisionError)):
+            parse_line("1/0 citron")
+        long = "200 g de chocolat noir " + "x" * 150
+        self.assertEqual(parse_line(long)["line"], long)
         self.assertEqual(parse_line("1,5 l lait")["unit"], "l")
         self.assertEqual(parse_line("2 lardons")["unit"], "")
         self.assertEqual(parse_line("sel")["quantity"], None)

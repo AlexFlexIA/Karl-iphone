@@ -78,5 +78,8 @@ Cinquième relecture complète de la branche, 10 points, tous traités et testé
 - Discussion Hermes : accès à la base hors de la boucle principale ; vocabulaire des rayons calculé une seule fois.
 - Vérification finale sur base vide : 75 tests serveur, build, parcours navigateur 8/8, axe sans défaut, « Tout accepter » d’Hermes.
 
+## Version à essayer
+- Démo interactive publiée (application réelle, faux serveur dans le navigateur, données fictives) : https://claude.ai/artifact/QNecwAECx9uwyCGua5Nx4i — source du faux serveur : `frontend/demo/mock-api.js`.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

@@ -117,6 +117,10 @@ Sur une instance de test (`KARL_PREVIEW=1`, base séparée), sans toucher à la 
 10. Propriétaire, **espace personnel** : nouvelle conversation → **Préparer mon panier Drive avec la liste de la famille** remplit le champ ; relire avant d’envoyer. Cocher **Donner à Hermes le contexte de la famille** puis demander « Qu’est-ce qui est prévu cette semaine ? ».
 11. **Historique** de l’espace personnel → **Télécharger une sauvegarde**.
 
+## Démo sans serveur
+
+`frontend/demo/mock-api.js` remplace l’API par un faux serveur dans le navigateur (données fictives gardées en local, mêmes règles de portions, rayons, doublons et tâches hebdomadaires, Hermes préenregistré, aucun espace personnel). Pour une démo : `npx vite build --base ./ --outDir /tmp/karl-demo`, copier `mock-api.js` à côté, et le charger par un `<script>` avant le module de l’application. Ne remplace pas une instance de test réelle.
+
 ## Vérifier
 
 `cd backend && .venv/bin/python -m unittest discover -s tests -v` puis `cd frontend && npm run build`.

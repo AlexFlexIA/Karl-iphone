@@ -15,10 +15,15 @@ type Overview = {
 type View = 'chat' | 'history' | 'dashboard'
 const statusNames = { connected: 'Hermes connecté', unavailable: 'Hermes injoignable', unauthorized: 'Clé Hermes refusée', not_configured: 'Hermes à configurer' }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Blocked site data (private mode, strict settings) must not blank the screen: the id then lives in memory only.
+function remember(id: string) {
+  try { localStorage.setItem('karl-conversation', id) } catch { /* Kept for this tab only. */ }
+}
 function initialId() {
-  const saved = localStorage.getItem('karl-conversation')
+  let saved: string | null = null
+  try { saved = localStorage.getItem('karl-conversation') } catch { /* Storage blocked. */ }
   const id = saved && uuidPattern.test(saved) ? saved : crypto.randomUUID()
-  localStorage.setItem('karl-conversation', id)
+  remember(id)
   return id
 }
 function dateLabel(value: string, withTime = false) {
@@ -167,7 +172,7 @@ export default function App({ onFamily }: { onFamily?: () => void }) {
   }
 
   function openConversation(id: string) {
-    voice.stopMedia(); localStorage.setItem('karl-conversation', id)
+    voice.stopMedia(); remember(id)
     setConversationId(id); setView('chat'); setInput(''); setError('')
   }
   function newConversation() { if (!busy && !loading) openConversation(crypto.randomUUID()) }

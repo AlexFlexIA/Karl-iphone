@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.db-*
+node_modules/
+dist/
+.DS_Store
+family-preview-dist/
+.impeccable/review/
+.impeccable/family-review/

@@ -525,3 +525,6 @@ button.block:hover{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
 .row-open > .icon{color:var(--muted);flex-shrink:0}
 .sheet-body .field-narrow{max-width:16rem}
 .suggestions{margin-bottom:var(--s2)}.suggestions .chip{text-align:left;padding:var(--s2) var(--s4);line-height:1.3}
+/* Long first names and summaries wrap inside the header instead of running under its edge on 320 px screens. */
+.fam .screen-head > div{min-width:0;max-width:100%}
+.fam .screen-head h1{overflow-wrap:anywhere;hyphens:auto}

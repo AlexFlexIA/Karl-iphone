@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
-import { capitalize, clock, dateKey, eventDay, longDate, plural } from './model'
-import type { FamilyEvent } from './model'
+import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, plural } from './model'
+import type { FamilyEvent, ShoppingLine } from './model'
 import { QuickAdd } from './Shopping'
 import { TaskRow } from './Tasks'
 import { Thread } from './Thread'
@@ -16,6 +16,15 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const { data, user, today } = ctx
   const [installHint, setInstallHint] = useState(false)
   useEffect(() => { setInstallHint(!standalone() && readPreference('install-hint') !== 'hidden') }, [])
+  // A nudge KARL computes itself: menu ingredients for the coming week that nobody has put on the list yet.
+  const [missing, setMissing] = useState<ShoppingLine[]>([])
+  const { api } = ctx
+  useEffect(() => {
+    let live = true
+    api(`family/meals/shopping?first=${today}&last=${dateKey(addDays(fromKey(today), 6))}`)
+      .then(result => { if (live) setMissing(result.lines.filter((line: ShoppingLine) => !line.on_list)) }, () => { if (live) setMissing([]) })
+    return () => { live = false }
+  }, [api, today, data?.at])
   const events = data?.events.filter(event => eventDay(event) === today) ?? []
   const pending = data?.items.filter(item => !item.checked) ?? []
   const mine = data?.tasks.filter(task => !task.done && task.assignee_id === user.id) ?? []
@@ -41,6 +50,12 @@ export function Today({ ctx }: { ctx: Ctx }) {
       <Icon name="share" />
       <div><p>Ajoute KARL à ton écran d’accueil pour l’ouvrir comme une app.</p><button className="btn-quiet" onClick={() => ctx.go('me')}>Voir comment</button></div>
       <button className="icon-btn" aria-label="Masquer ce conseil" onClick={() => { writePreference('install-hint', 'hidden'); setInstallHint(false) }}><Icon name="close" /></button>
+    </aside>}
+    {missing.length > 0 && <aside className="hint" aria-label="Suggestion">
+      <Icon name="cart" />
+      <div><p>{plural(missing.length, 'ingrédient')} du menu des 7 prochains jours {missing.length > 1 ? 'ne sont pas' : 'n’est pas'} sur la liste : {missing.slice(0, 3).map(line => line.name.toLowerCase()).join(', ')}{missing.length > 3 ? '…' : '.'}</p>
+        <button className="btn-quiet" onClick={() => { writePreference('shopping-mode', 'meals'); ctx.go('shopping') }}>Préparer les courses du menu</button></div>
+      <span />
     </aside>}
     <Weather ctx={ctx} />
     <div className="today-grid">

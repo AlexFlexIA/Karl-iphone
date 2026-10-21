@@ -13,8 +13,11 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
   const [date, setDate] = useState(start ? dateKey(start) : day)
   const [from, setFrom] = useState(start ? timeKey(start) : '17:00')
   const [to, setTo] = useState(end ? timeKey(end) : '18:00')
-  const [attendees, setAttendees] = useState<string[]>(event ? event.attendees : [ctx.user.id])
-  const [driver, setDriver] = useState(event?.driver_id ?? '')
+  // Someone whose access was switched off can no longer be chosen: they leave the activity when it is saved.
+  const active = (id: string | null) => !!id && ctx.members.some(member => member.id === id)
+  const gone = event ? [...new Set([...event.attendees, event.driver_id])].filter((id): id is string => !!id && !active(id)) : []
+  const [attendees, setAttendees] = useState<string[]>(event ? event.attendees.filter(active) : [ctx.user.id])
+  const [driver, setDriver] = useState(event?.driver_id && active(event.driver_id) ? event.driver_id : '')
   const [ask, setAsk] = useState(!!event?.ask)
   const creator = event?.created_by ?? ctx.user.id
   const invited = [...new Set([...attendees, driver])].filter(id => id && id !== creator)
@@ -36,6 +39,7 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
   }
 
   return <form className="sheet-body" onSubmit={save}>
+    {gone.length > 0 && <p className="note"><Icon name="alert" />{gone.map(id => ctx.find(id)?.name ?? 'Un ancien membre').join(', ')} n’{gone.length > 1 ? 'ont' : 'a'} plus accès à KARL : retiré{gone.length > 1 ? 's' : ''} de l’activité à l’enregistrement.</p>}
     {event?.recurrence === 'weekly' && <p className="note"><Icon name="refresh" />Les changements s’appliquent à toute la série hebdomadaire.</p>}
     <div className="field"><label htmlFor="event-title">Activité</label>
       <input id="event-title" name="title" required maxLength={160} defaultValue={event?.title ?? ''} placeholder="Basket, dentiste, anniversaire…" /></div>

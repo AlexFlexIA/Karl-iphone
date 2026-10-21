@@ -43,6 +43,9 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
   const [problem, setProblem] = useState('')
   const [renaming, setRenaming] = useState<Thread | null>(null)
   const end = useRef<HTMLDivElement>(null)
+  // The conversation on screen: a reply that arrives after the member opened another one is not shown there.
+  const onScreen = useRef(thread)
+  onScreen.current = thread
   const field = useRef<HTMLTextAreaElement>(null)
   const { api } = ctx
 
@@ -68,8 +71,10 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
     const pending: Message = { id: 'pending', role: 'user', content: text, proposals: [], created_at: new Date().toISOString() }
     setMessages(previous => [...previous, pending]); setWaiting(true); setProblem(''); update('')
     try {
-      const { message } = await api('family/assistant/chat', { method: 'POST', body: JSON.stringify({ thread_id: thread, message: text }) })
-      setMessages(previous => [...previous.filter(item => item.id !== 'pending'), { ...pending, id: 'sent-' + message.id }, message])
+      const sentTo = thread
+      const { message } = await api('family/assistant/chat', { method: 'POST', body: JSON.stringify({ thread_id: sentTo, message: text }) })
+      if (onScreen.current === sentTo) setMessages(previous => [...previous.filter(item => item.id !== 'pending'), { ...pending, id: 'sent-' + message.id }, message])
+      else ctx.notify('Hermes a répondu dans ta conversation précédente.')
       void load()
     } catch (e) {
       // The question goes back into the field so nothing typed is lost.

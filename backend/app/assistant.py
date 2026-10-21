@@ -7,10 +7,10 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
+from . import hermes
 from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences, waiting_item
 from .family_auth import member
 from .meals import MealInput, RecipeInput, ingredients_of
@@ -77,22 +77,12 @@ async def complete(messages):
     key = os.getenv("HERMES_FAMILY_API_KEY", "")
     if not key:
         raise Unavailable("L’assistant famille n’est pas encore branché sur le serveur.")
-    base = os.getenv("HERMES_FAMILY_API_URL", "http://127.0.0.1:8643/v1").rstrip("/")
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            response = await client.post(f"{base}/chat/completions", headers={"Authorization": f"Bearer {key}"},
-                                         json={"model": os.getenv("HERMES_FAMILY_MODEL", "hermes-agent"),
-                                               "messages": messages, "stream": False})
-            response.raise_for_status()
-            choice = response.json()["choices"][0]
-            reply = choice["message"]["content"]
-            if choice.get("finish_reason") != "stop" or not isinstance(reply, str) or not reply.strip():
-                raise ValueError("No complete text reply")
-            return reply
-    except httpx.TimeoutException as exc:
+        return await hermes.reply(os.getenv("HERMES_FAMILY_API_URL", "http://127.0.0.1:8643/v1"), key,
+                                  os.getenv("HERMES_FAMILY_MODEL", "hermes-agent"), messages)
+    except hermes.Timeout as exc:
         raise Unavailable("L’assistant met trop de temps à répondre. Réessayez dans un moment.") from exc
-    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as exc:
-        # Upstream bodies may hold tool output: never forwarded.
+    except hermes.Failed as exc:
         raise Unavailable("L’assistant n’a pas pu répondre. Réessayez dans un moment.") from exc
 
 
@@ -442,6 +432,12 @@ def make_event(db, proposal, user):
 
 
 def make_task(db, proposal, user):
+    try:
+        # Same rules as a task typed by hand (a weekly task needs a date, a reminder needs a time zone).
+        TaskInput(title=proposal["title"], due_date=proposal["due_date"], repeat=proposal.get("repeat", "none"),
+                  remind_at=proposal.get("remind_at"))
+    except ValidationError as exc:
+        raise HTTPException(422, "Cette proposition de tâche n’est plus valable. Demandez-la à nouveau.") from exc
     assignee = proposal["assignee_id"]
     if assignee and not db.execute("SELECT 1 FROM family_members WHERE id=? AND active=1", (assignee,)).fetchone():
         assignee = user["id"]

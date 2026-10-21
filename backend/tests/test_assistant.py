@@ -62,7 +62,7 @@ class AssistantTests(unittest.TestCase):
             return httpx.Response(200, json={'choices': [{'finish_reason': 'stop', 'message': {'content': 'Salut'}}]})
 
         real = httpx.AsyncClient
-        with patch.object(assistant.httpx, 'AsyncClient', lambda **kw: real(transport=httpx.MockTransport(handler), **kw)):
+        with patch.object(hermes.httpx, 'AsyncClient', lambda **kw: real(transport=httpx.MockTransport(handler), **kw)):
             response = self.ask(str(uuid4()))
         self.assertEqual(response.status_code, 200, response.text)
         url, auth, body = calls[0]
@@ -292,6 +292,18 @@ class AssistantTests(unittest.TestCase):
                 self.assertEqual(self.ask(thread).status_code, 200)
             self.client.delete('/api/family/assistant/threads/' + thread, headers=self.headers).raise_for_status()
             self.assertEqual(self.ask(str(uuid4())).status_code, 429)
+
+
+    def test_accepting_rechecks_a_stored_task_proposal(self):
+        with patch.object(assistant, 'complete', AsyncMock(return_value='```karl-task\n{"title": "Poubelles", "due_date": "2026-11-02", "repeat": "weekly"}\n```')):
+            reply = self.ask(str(uuid4())).json()['message']
+        with database() as db, db:
+            stored = json.loads(db.execute("SELECT proposals FROM family_thread_messages WHERE id=?", (reply['id'],)).fetchone()[0])
+            stored[0]['due_date'] = None
+            db.execute("UPDATE family_thread_messages SET proposals=? WHERE id=?", (json.dumps(stored), reply['id']))
+        response = self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'], [])
 
 
 if __name__ == '__main__':

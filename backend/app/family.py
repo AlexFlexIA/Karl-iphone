@@ -114,6 +114,9 @@ def update_item(item_id: str, body: ItemChange, user=Depends(member)):
         name = row["name"] if body.name is None else body.name.strip()
         if not name:
             raise HTTPException(422, "Le nom de l’article ne peut pas être vide.")
+        other = waiting_item(db, name) if body.name is not None and not row["checked"] else None
+        if other and other != item_id:
+            raise HTTPException(409, f"« {name} » est déjà sur la liste.")
         cursor = db.execute("""UPDATE family_items SET checked=?,deleted=?,name=?,quantity=?,category=?,version=version+1,updated_by=?,updated_at=?
             WHERE id=? AND version=?""", (row["checked"] if body.checked is None else body.checked,
                                          row["deleted"] if body.deleted is None else body.deleted,

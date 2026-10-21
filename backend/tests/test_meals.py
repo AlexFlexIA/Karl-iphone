@@ -166,6 +166,10 @@ class MealTests(unittest.TestCase):
         self.assertEqual((item['name'], item['quantity'], item['category'], item['version']), ('Tomates cerises', '2 kg', 'Fruits et légumes', 2))
         change({'version': 2, 'checked': True}).raise_for_status()
         self.assertFalse(self.post('items', {'name': 'Tomates cerises'}).json()['duplicate'])
+        lait = self.post('items', {'name': 'Lait'}).json()['id']
+        clash = self.client.patch('/api/family/items/' + lait, headers=self.headers, json={'version': 1, 'name': 'tomates cerises'})
+        self.assertEqual(clash.status_code, 409)
+        self.assertEqual(self.client.patch('/api/family/items/' + lait, headers=self.headers, json={'version': 1, 'name': 'Lait demi-écrémé'}).status_code, 200)
 
 
     def test_weekly_tasks_come_back_once_and_withdraw_on_reopen(self):

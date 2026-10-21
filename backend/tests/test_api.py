@@ -55,6 +55,16 @@ class ApiTests(unittest.TestCase):
         with patch.dict(os.environ, {"KARL_ACCESS_TOKEN": ""}):
             self.assertEqual(self.client.get("/api/health", headers=self.headers).status_code, 503)
 
+    def test_drive_list_is_owner_only_and_skips_ticked_items(self):
+        self.assertEqual(self.client.get("/api/drive/list").status_code, 401)
+        from app.store import database
+        with database() as db, db:
+            owner = db.execute("SELECT id FROM family_members WHERE is_owner=1").fetchone()[0]
+            db.executemany("INSERT INTO family_items(id,name,quantity,category,checked,updated_by,updated_at) VALUES(?,?,?,?,?,?,'now')",
+                           [("a", "Lait", "1 l", "Frais", 0, owner), ("b", "Pain", "", "Autres", 1, owner)])
+        self.assertEqual(self.client.get("/api/drive/list", headers=self.headers).json(),
+                         {"items": [{"name": "Lait", "quantity": "1 l", "category": "Frais"}]})
+
     def test_chat_roundtrip_persists_and_forwards_history(self):
         requests = []
 

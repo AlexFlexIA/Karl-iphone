@@ -99,6 +99,15 @@ async def status(request: Request):
             "checked_at": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/api/drive/list", dependencies=[Depends(authenticate)])
+def drive_list():
+    """The family items still to buy, for the owner to hand to their own Hermes. Nothing is sent from here."""
+    with database() as db:
+        rows = db.execute("""SELECT name,quantity,category FROM family_items WHERE deleted=0 AND checked=0
+            ORDER BY category,name COLLATE NOCASE LIMIT 300""").fetchall()
+    return {"items": [dict(row) for row in rows]}
+
+
 @app.get("/api/conversations", dependencies=[Depends(authenticate)])
 def conversations(offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=100)):
     with database() as db:

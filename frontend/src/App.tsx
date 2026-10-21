@@ -183,6 +183,19 @@ export default function App({ onFamily }: { onFamily?: () => void }) {
     catch { setError('Copie indisponible. Sélectionnez le texte pour le copier.') }
   }
   function suggestion(text: string) { setInput(text); textarea.current?.focus() }
+  // Pre-fills a request for the owner's own Hermes; nothing is sent until they read it and press send.
+  async function prepareDrive() {
+    setError('')
+    try {
+      const { items } = await api('drive/list') as { items: { name: string; quantity: string; category: string }[] }
+      if (!items.length) { setError('La liste de courses de la famille est vide : rien à préparer.'); return }
+      suggestion(['Prépare mon panier E.Leclerc Drive avec la liste de courses de la famille :',
+        ...items.map(item => `- ${item.name}${item.quantity ? ` (${item.quantity})` : ''}`),
+        '', 'Règles : ajoute au panier seulement, ne valide jamais la commande et ne paie rien, c’est moi qui valide.',
+        'Ne rajoute pas un produit déjà présent dans le panier. Si un produit manque, propose-moi une alternative au lieu de la choisir.',
+        'Termine par le récapitulatif du panier et son total.'].join('\n'))
+    } catch (e) { setError(e instanceof Error ? e.message : 'Liste de courses indisponible.') }
+  }
   const connected = overview?.hermes.status === 'connected'
   const connectionLabel = !online ? 'Hors ligne' : overview ? statusNames[overview.hermes.status] : probing ? 'Vérification…' : 'Connexion à vérifier'
   const filtered = conversations.filter(item => item.title.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')))
@@ -198,7 +211,7 @@ export default function App({ onFamily }: { onFamily?: () => void }) {
         <div className="workspace-bar"><nav aria-label="Navigation principale">{([['chat', 'Conversation', 'chat'], ['history', 'Historique', 'history'], ['dashboard', 'Dashboard', 'dashboard']] as const).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => changeView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav><button className="new-conversation" aria-label="Nouvelle discussion" onClick={newConversation} disabled={busy || loading}><Icon name="plus" /><span>Nouvelle discussion</span></button></div>
         <main className="workspace">
           {view === 'chat' && <div className="conversation-layout"><section className="chat" aria-label="Conversation" aria-busy={busy || loading}>
-            {!messages.length && !pending && !loading && <div className="empty-state"><span className="graphic-arrow" aria-hidden="true"><Icon name="arrow" /></span><h1>On commence<br />par quoi ?</h1><p>Une question, une idée, quelque chose à débloquer.<br />Écrivez à KARL ou dictez votre message.</p><div className="suggestions">{['Aide-moi à organiser ma journée.', 'Aide-moi à clarifier une idée.', 'Je voudrais résumer un texte.'].map(text => <button key={text} onClick={() => suggestion(text)}>{text}<Icon name="chevron" /></button>)}</div></div>}
+            {!messages.length && !pending && !loading && <div className="empty-state"><span className="graphic-arrow" aria-hidden="true"><Icon name="arrow" /></span><h1>On commence<br />par quoi ?</h1><p>Une question, une idée, quelque chose à débloquer.<br />Écrivez à KARL ou dictez votre message.</p><div className="suggestions">{['Aide-moi à organiser ma journée.', 'Aide-moi à clarifier une idée.', 'Je voudrais résumer un texte.'].map(text => <button key={text} onClick={() => suggestion(text)}>{text}<Icon name="chevron" /></button>)}<button onClick={() => void prepareDrive()}>Préparer mon panier Drive avec la liste de la famille<Icon name="chevron" /></button></div></div>}
             {messageTotal > messages.length && <p className="subtle">Les {messages.length} derniers messages sont affichés.</p>}
             {loading && <p className="loading-state" role="status"><span className="spinner" />Chargement de la conversation…</p>}
             {messages.map((message, index) => <article key={index} className={`message ${message.role}`}><div className="message-author">{message.role === 'assistant' && <span className="avatar" aria-hidden="true">K</span>}<span>{message.role === 'user' ? 'Vous' : 'KARL'}</span></div><Reply text={message.content} />{message.role === 'assistant' && <div className="message-actions"><button onClick={() => copyMessage(message.content, index)}><Icon name={copied === index ? 'check' : 'copy'} />{copied === index ? 'Copié' : 'Copier'}</button>{voice.canSpeak && <button aria-pressed={voice.speaking === index} onClick={() => voice.speak(message.content, index)}><Icon name={voice.speaking === index ? 'stop' : 'sound'} />{voice.speaking === index ? 'Arrêter' : 'Écouter'}</button>}</div>}</article>)}

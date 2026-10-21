@@ -69,7 +69,7 @@ Prévision : [Open-Meteo](https://open-meteo.com/) (modèle `meteofrance_seamles
 
 Les portions proposées par défaut correspondent au nombre de membres actifs. Au-delà de six recettes, un champ de recherche filtre le carnet par titre ou ingrédient. Toucher une recette l’affiche avec ses quantités recalculées pour le nombre de personnes choisi ; **Ajouter aux courses** y envoie ses ingrédients sans planifier de repas, avec la même règle anti-doublon. Toucher un plat prévu permet de changer midi/soir et le nombre de personnes. **Reprendre la semaine précédente** recopie le menu sans écraser un créneau déjà rempli. L’Accueil affiche le menu du jour et signale les ingrédients du menu des 7 prochains jours qui ne sont pas encore sur la liste.
 
-**E.Leclerc Drive : non relié.** L’intégration Drive ne se trouve pas dans ce dépôt. En attendant, **Copier la liste pour le Drive** copie la liste restante, classée par rayon. KARL ne passe aucune commande et n’effectue aucun achat.
+**E.Leclerc Drive : non relié.** L’intégration Drive ne se trouve pas dans ce dépôt. En attendant, **Copier la liste pour le Drive** copie la liste restante, classée par rayon. KARL ne passe aucune commande et n’effectue aucun achat. Dans l’espace personnel du propriétaire, **Préparer mon panier Drive avec la liste de la famille** pré-remplit une demande à son propre Hermes (liste restante + consignes : ajouter au panier seulement, ne jamais valider ni payer, pas de doublon, alternatives proposées et non choisies). Rien n’est envoyé avant que le propriétaire relise et touche Envoyer ; le résultat dépend des outils Drive dont dispose ce Hermes. Route `GET /api/drive/list`, réservée à la clé KARL personnelle.
 
 ## Hermes pour chaque membre
 

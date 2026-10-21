@@ -93,6 +93,8 @@ Onglet « Hermes » de l’espace famille : chaque membre a ses propres conversa
 
 La clé KARL personnelle reste distincte des sessions familiales, en mémoire dans l’onglet personnel. Les comptes familiaux, y compris administrateurs, ne donnent pas accès au chat, à l’historique ou aux crons personnels. Aucune commande ou notification envoyée à Telegram par les fonctions familiales.
 
+Case **Donner à Hermes le contexte de la famille** (sous le champ de saisie, mémorisée sur l’appareil) : chaque message envoyé avec la case cochée transmet au Hermes personnel un résumé de l’agenda familial des 7 jours, des tâches ouvertes, de la liste de courses et du menu. Jamais les fils ni la mémoire privés des membres ; ce résumé n’est pas enregistré dans l’historique.
+
 L’adaptateur utilise `/v1/models` et `/v1/chat/completions` de l’[API Hermes](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server) : `HERMES_API_URL`, `HERMES_API_KEY`, `HERMES_MODEL`. Les conversations KARL sont indépendantes ; les 20 derniers messages sont transmis par tour. Voix native du navigateur ou micro du clavier iPhone ; aucun moteur audio ajouté au VPS.
 
 Les dashboards personnels Aujourd’hui/Maison lisent `HERMES_CRON_DIR` ; depuis un Mac, définir aussi `HERMES_CRON_SSH_HOST` et éventuellement `HERMES_CRON_READ_USER` (droits préexistants). Projection en lecture seule des tâches et derniers rapports Bresser/Tempo ; aucun prompt, destinataire, rapport brut ou secret renvoyé. Cache 20 secondes, relevés anciens/pannes signalés, aucune tâche exécutée. Mesures Linky non intégrées.

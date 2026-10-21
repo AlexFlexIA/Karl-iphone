@@ -71,6 +71,8 @@ async def private_responses(request: Request, call_next):
 class ChatRequest(BaseModel):
     conversation_id: UUID
     message: str = Field(min_length=1, max_length=4000)
+    # Opt-in per message: the household summary is sent with this turn only, never stored.
+    family_context: bool = False
 
 
 def history(conversation_id: UUID, limit: int = 200) -> list[dict[str, str]]:
@@ -159,6 +161,9 @@ async def chat(body: ChatRequest, request: Request):
         raise HTTPException(409, "Un échange est déjà en cours. Attendre sa réponse.")
     async with request.app.state.chat_lock:
         messages = history(body.conversation_id, limit=20)
+        if body.family_context:
+            with database() as db:
+                messages.insert(0, {"role": "system", "content": assistant.family_digest(db)})
         messages.append({"role": "user", "content": message})
         try:
             reply = await hermes.complete(messages)

@@ -74,6 +74,29 @@ class ApiTests(unittest.TestCase):
         self.assertNotIn("google_sub", tables["family_members"][0])
         self.assertFalse({"family_sessions", "family_invites", "family_oauth"} & set(tables))
 
+    def test_family_context_is_opt_in_and_never_stored(self):
+        from app.store import database
+        with database() as db, db:
+            owner = db.execute("SELECT id FROM family_members WHERE is_owner=1").fetchone()[0]
+            db.execute("INSERT INTO family_items(id,name,quantity,category,updated_by,updated_at) VALUES('a','Lait','1 l','Frais',?,'now')", (owner,))
+            db.execute("INSERT INTO family_memory(id,member_id,text,created_at) VALUES('m',?,'Secret de famille','now')", (owner,))
+        sent = []
+
+        def handler(request):
+            sent.append(json.loads(request.content)["messages"])
+            return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": "ok"}}]})
+
+        with self.transport(handler):
+            self.post("Sans contexte").raise_for_status()
+            self.client.post("/api/chat", headers=self.headers, json={"conversation_id": self.conversation_id, "message": "Avec",
+                                                                      "family_context": True}).raise_for_status()
+        self.assertNotEqual(sent[0][0]["role"], "system")
+        self.assertEqual(sent[1][0]["role"], "system")
+        self.assertIn("Lait (1 l)", sent[1][0]["content"])
+        self.assertNotIn("Secret de famille", sent[1][0]["content"])
+        stored = self.client.get(f"/api/conversations/{self.conversation_id}", headers=self.headers).json()["messages"]
+        self.assertEqual([m["role"] for m in stored], ["user", "assistant", "user", "assistant"])
+
     def test_chat_roundtrip_persists_and_forwards_history(self):
         requests = []
 

@@ -72,7 +72,8 @@ class ApiTests(unittest.TestCase):
         tables = response.json()["tables"]
         self.assertEqual(len(tables["family_members"]), 1)
         self.assertNotIn("google_sub", tables["family_members"][0])
-        self.assertFalse({"family_sessions", "family_invites", "family_oauth"} & set(tables))
+        self.assertFalse({"family_sessions", "family_invites", "family_oauth", "family_threads", "family_thread_messages",
+                          "family_memory"} & set(tables))
 
     def test_family_context_is_opt_in_and_never_stored(self):
         from app.store import database

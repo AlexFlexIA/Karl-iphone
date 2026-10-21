@@ -111,9 +111,10 @@ def drive_list():
     return {"items": [dict(row) for row in rows]}
 
 
-# Family content only: sessions, invitations and sign-in state are secrets, never exported.
+# Shared family content and the owner's own conversations. Never sessions, invitations or sign-in state, and never a
+# member's private Hermes threads or memory: those stay unreadable by the owner, as the family app promises.
 BACKUP_TABLES = ["family_members", "family_items", "family_events", "family_event_replies", "family_tasks", "family_recipes",
-                 "family_meals", "family_threads", "family_thread_messages", "family_memory", "messages"]
+                 "family_meals", "messages"]
 
 
 @app.get("/api/backup", dependencies=[Depends(authenticate)])

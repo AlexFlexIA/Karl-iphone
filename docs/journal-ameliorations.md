@@ -17,7 +17,7 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Accessibilité WCAG 2.2 AA vérifiée (axe) sur tous les nouveaux écrans, clair et sombre.
 - Tâches hebdomadaires ; tâches modifiables ; Hermes connaît les tâches en retard, familiales et à valider.
 - Vider le panier (annulable) ; menu du jour sous le Planning ; guide de test dans le README.
-- Propriétaire : demande « Préparer mon panier Drive » pré-remplie pour son Hermes, sauvegarde JSON sans secrets.
+- Propriétaire : demande « Préparer mon panier Drive » pré-remplie pour son Hermes, sauvegarde JSON sans secrets ni données Hermes privées des membres.
 - Rayon deviné d’après le nom (produits ménagers compris) ; tout cocher/décocher ; écran gardé allumé en magasin.
 
 ## Cycle 2 — assistant personnel (5 tours)

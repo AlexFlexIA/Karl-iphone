@@ -157,16 +157,18 @@ class AssistantTests(unittest.TestCase):
         reply_text = ('Voilà.\n```karl-task\n{"title": "Réviser", "due_date": "2026-11-03", "assignee": "Inconnu"}\n```'
                       '\n```karl-item\n{"name": "Lait", "quantity": "2", "category": "Frais"}\n```'
                       '\n```karl-item\n{"name": "Pain", "category": "Boulangerie"}\n```'
+                      '\n```karl-item\n{"name": "Pommes"}\n```'
                       '\n```karl-memory\n{"text": "Allergique aux noix"}\n```')
         with patch.object(assistant, 'complete', AsyncMock(return_value=reply_text)):
             reply = self.ask(str(uuid4())).json()['message']
         self.assertEqual(reply['content'], 'Voilà.')
-        self.assertEqual([proposal['kind'] for proposal in reply['proposals']], ['task', 'item', 'memory'])
+        self.assertEqual([proposal['kind'] for proposal in reply['proposals']], ['task', 'item', 'item', 'memory'])
+        self.assertEqual(reply['proposals'][2]['category'], 'Fruits et légumes')
         self.assertEqual(reply['proposals'][0]['assignee_id'], session['user']['id'])
         self.assertEqual(self.client.get('/api/family/tasks').json()['tasks'], [])
         self.assertEqual(self.client.get('/api/family/assistant/memory').json()['memory'], [])
         path = f"/api/family/assistant/messages/{reply['id']}/accept"
-        ids = [self.client.post(path, headers=self.headers, json={'index': index}).json()['id'] for index in range(3)]
+        ids = [self.client.post(path, headers=self.headers, json={'index': index}).json()['id'] for index in (0, 1, 3)]
         self.assertEqual(self.client.post(path, headers=self.headers, json={'index': 0}).json()['id'], ids[0])
         self.assertEqual([task['title'] for task in self.client.get('/api/family/tasks').json()['tasks']], ['Réviser'])
         self.assertEqual([item['name'] for item in self.client.get('/api/family/items').json()['items']], ['Lait'])

@@ -15,7 +15,7 @@ from .family import PARIS, EventInput, ItemInput, TaskInput, now, occurrences
 from .family_auth import member
 from .meals import MealInput, RecipeInput, ingredients_of
 from .store import database
-from .words import key_of
+from .words import aisle_of, key_of
 
 router = APIRouter(prefix="/api/family/assistant")
 PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal|recipe)\s*\n(.*?)```", re.S)
@@ -209,7 +209,9 @@ def proposal(kind, raw, user, names):
         return {"kind": "task", "title": task.title, "due_date": task.due_date.isoformat() if task.due_date else None,
                 "assignee_id": task.assignee_id, "repeat": task.repeat, "ref": None}
     if kind == "item":
-        item = ItemInput(name=raw.get("name", ""), quantity=raw.get("quantity") or "", category=raw.get("category") or "Autres")
+        name = raw.get("name", "")
+        item = ItemInput(name=name, quantity=raw.get("quantity") or "",
+                         category=raw.get("category") or (aisle_of(name) if isinstance(name, str) else "Autres"))
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
     if kind == "meal":
         slot = {"midi": "lunch", "soir": "dinner"}.get(str(raw.get("slot", "soir")).casefold(), raw.get("slot"))

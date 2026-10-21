@@ -60,6 +60,7 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 
 ## Cycle 4 — reprise n°1 (10 h 20 UTC, après réinitialisation du quota)
 - Vérification complète sur base vide : 73 tests serveur, build, parcours navigateur (8/8), axe sans défaut.
+- Aperçu des courses du menu regroupé par rayon, dans l’ordre de la liste.
 
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

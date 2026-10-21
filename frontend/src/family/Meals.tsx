@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Icon } from '../icons'
 import type { Ctx } from './context'
 import type { Meal, Recipe, ShoppingLine, Slot } from './model'
-import { addDays, capitalize, dateKey, longDate, monday, plural, shortDate } from './model'
+import { addDays, capitalize, categories, dateKey, longDate, monday, plural, shortDate } from './model'
 import { Empty, Sheet, Skeleton } from './ui'
 
 const slots: [Slot, string][] = [['lunch', 'Midi'], ['dinner', 'Soir']]
@@ -225,18 +225,23 @@ function ShoppingPreview({ ctx, path, target, extra, intro, onDone }: {
       <button type="button" className="btn-quiet" disabled={chosen.size === fresh.length} onClick={() => setChosen(new Set(fresh.map(line => line.key)))}>Tout cocher</button>
       <button type="button" className="btn-quiet" disabled={!chosen.size} onClick={() => setChosen(new Set())}>Tout décocher</button>
     </div>}
-    {!lines.length ? <Empty title="Aucun ingrédient à prévoir." /> : <ul className="rows">
-      {lines.map(line => <li className="row" key={line.key}>
-        <label className="row-main">
-          <input type="checkbox" className="check" checked={chosen.has(line.key)} disabled={!!line.on_list} onChange={() => toggle(line.key)} />
-          <span className="row-text">
-            <span className="row-title">{line.name}</span>
-            <span className="row-meta">{line.quantity && <strong>{line.quantity}</strong>}<span>{line.category}</span><span>{line.sources.join(', ')}</span>
-              {line.on_list && <span className="tag">Déjà sur la liste · {line.on_list}</span>}</span>
-          </span>
-        </label>
-      </li>)}
-    </ul>}
+    {!lines.length ? <Empty title="Aucun ingrédient à prévoir." /> : categories.map(category => {
+      // Grouped by aisle in the list's own order, so the preview reads like the list it fills.
+      const rows = lines.filter(line => line.category === category)
+      return rows.length ? <section className="group preview-group" key={category} aria-label={category}>
+        <h3 className="group-title">{category}<span>{rows.length}</span></h3>
+        <ul className="rows">{rows.map(line => <li className="row" key={line.key}>
+          <label className="row-main">
+            <input type="checkbox" className="check" checked={chosen.has(line.key)} disabled={!!line.on_list} onChange={() => toggle(line.key)} />
+            <span className="row-text">
+              <span className="row-title">{line.name}</span>
+              <span className="row-meta">{line.quantity && <strong>{line.quantity}</strong>}<span>{line.sources.join(', ')}</span>
+                {line.on_list && <span className="tag">Déjà sur la liste · {line.on_list}</span>}</span>
+            </span>
+          </label>
+        </li>)}</ul>
+      </section> : null
+    })}
     <div className="sheet-actions">
       <span className="muted">{fresh.length < lines.length ? `${plural(lines.length - fresh.length, 'produit')} déjà sur la liste, non ajouté${lines.length - fresh.length > 1 ? 's' : ''}.` : ''}</span>
       <button className="btn btn-gold" disabled={ctx.disabled || !chosen.size} onClick={() => void add()}><Icon name="plus" />Ajouter {plural(chosen.size, 'article')}</button>

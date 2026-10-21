@@ -10,7 +10,7 @@ type Proposal = {
   kind?: 'event' | 'task' | 'item' | 'memory' | 'meal' | 'recipe'; title: string; event_id?: string | null; ref?: string | null
   starts_at?: string; ends_at?: string; location?: string; attendees?: string[]
   due_date?: string | null; assignee_id?: string | null; quantity?: string; category?: string
-  repeat?: 'none' | 'weekly'; day?: string; slot?: 'lunch' | 'dinner'; servings?: number; ingredients?: string[]; notes?: string
+  repeat?: 'none' | 'weekly'; remind_at?: string | null; day?: string; slot?: 'lunch' | 'dinner'; servings?: number; ingredients?: string[]; notes?: string
 }
 // Older replies only carried calendar proposals, without a kind.
 const kindOf = (proposal: Proposal) => proposal.kind ?? 'event'
@@ -156,7 +156,7 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
                     {proposal.location && <span><Icon name="pin" />{proposal.location}</span>}</p>
                   <p className="thread-meta">{(proposal.attendees ?? []).map(id => <Person key={id} member={ctx.find(id)} fallback="Ancien membre" />)}</p>
                 </>}
-                {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {longDate(proposal.due_date)}</span>}{proposal.repeat === 'weekly' && <span><Icon name="refresh" />Chaque semaine</span>}</p>}
+                {kind === 'task' && <p className="row-meta"><Person member={ctx.find(proposal.assignee_id ?? null)} />{proposal.due_date && <span>Pour le {longDate(proposal.due_date)}</span>}{proposal.repeat === 'weekly' && <span><Icon name="refresh" />Chaque semaine</span>}{proposal.remind_at && <span><Icon name="clock" />Rappel {clock(proposal.remind_at)}</span>}</p>}
                 {kind === 'meal' && proposal.day && <p className="row-meta"><span>{capitalize(longDate(proposal.day))} · {proposal.slot === 'lunch' ? 'midi' : 'soir'}</span><span>{plural(proposal.servings ?? 4, 'personne')}</span></p>}
                 {kind === 'recipe' && <>
                   <p className="row-meta"><span>{plural(proposal.servings ?? 4, 'personne')}</span><span>{plural(proposal.ingredients?.length ?? 0, 'ingrédient')}</span></p>

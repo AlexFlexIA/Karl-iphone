@@ -61,6 +61,8 @@ Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre
 
 L’auteur d’une tâche ou un parent peut en modifier le titre, la personne et la date (crayon sur la ligne).
 
+**Rappels** : une tâche datée peut avoir une heure de rappel (colonne `remind_at`, en UTC ; une copie hebdomadaire garde la même heure de Paris, changement d’heure compris). À l’heure dite, la tâche apparaît en tête de l’Accueil de la personne concernée (ou de l’auteur pour une tâche familiale) avec un bandeau ; « Moi → Rappels » active en plus une notification sur l’appareil. Tout cela seulement quand KARL est ouvert : aucun serveur d’envoi n’est ajouté. Hermes peut proposer une heure de rappel (`remind_at`).
+
 Une tâche datée peut être marquée **Chaque semaine** : une fois faite (ou validée pour une tâche clé), KARL crée la même tâche sept jours après sa date, une seule fois. La rouvrir retire cette copie si personne n’y a touché ; retirer une ancienne semaine terminée ne touche pas à la suivante. Colonnes `repeat` et `next_id`, ajoutées automatiquement.
 
 ## Météo de la famille

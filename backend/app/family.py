@@ -21,6 +21,14 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def utc(value):
+    if value is None:
+        return None
+    if not value.tzinfo:
+        raise HTTPException(422, "Un fuseau horaire est requis pour le rappel.")
+    return value.astimezone(timezone.utc).isoformat()
+
+
 def active_ids(db, values):
     for value in values:
         if value and not db.execute("SELECT 1 FROM family_members WHERE id=? AND active=1", (value,)).fetchone():
@@ -306,6 +314,7 @@ class TaskInput(BaseModel):
     due_date: date | None = None
     key_task: bool = False
     repeat: Literal["none", "weekly"] = "none"
+    remind_at: datetime | None = None
 
     _title = field_validator("title")(required)
 
@@ -313,6 +322,8 @@ class TaskInput(BaseModel):
     def dated_repeat(self):
         if self.repeat == "weekly" and not self.due_date:
             raise ValueError("Une tâche hebdomadaire a besoin d’une date.")
+        if self.remind_at and not self.remind_at.tzinfo:
+            raise ValueError("Un fuseau horaire est requis pour le rappel.")
         return self
 
 
@@ -325,6 +336,7 @@ class TaskChange(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
     assignee_id: str | None = Field(default=None, max_length=80)
     due_date: date | None = None
+    remind_at: datetime | None = None
 
 
 @router.get("/tasks")
@@ -342,9 +354,9 @@ def add_task(body: TaskInput, user=Depends(member)):
         active_ids(db, [body.assignee_id])
         if db.execute("SELECT COUNT(*) FROM family_tasks WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "La liste est pleine. Retirez les anciennes tâches.")
-        db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat) VALUES(?,?,?,?,?,?,?)",
+        db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat,remind_at) VALUES(?,?,?,?,?,?,?,?)",
                    (task_id, body.title, body.assignee_id, body.due_date.isoformat() if body.due_date else None, user["id"], body.key_task,
-                    body.repeat))
+                    body.repeat, utc(body.remind_at)))
     return {"id": task_id}
 
 
@@ -356,7 +368,7 @@ def update_task(task_id: str, body: TaskChange, user=Depends(member)):
             raise HTTPException(404, "Tâche introuvable.")
         if body.deleted is not None and user["role"] != "admin" and row["created_by"] != user["id"]:
             raise HTTPException(403, "Seul l’auteur ou un parent peut retirer cette tâche.")
-        details = body.model_fields_set & {"title", "assignee_id", "due_date"}
+        details = body.model_fields_set & {"title", "assignee_id", "due_date", "remind_at"}
         if details:
             if user["role"] != "admin" and row["created_by"] != user["id"]:
                 raise HTTPException(403, "Seul l’auteur ou un parent peut modifier cette tâche.")
@@ -391,9 +403,10 @@ def update_task(task_id: str, body: TaskChange, user=Depends(member)):
         title = body.title.strip() if "title" in details else row["title"]
         assignee = body.assignee_id if "assignee_id" in details else row["assignee_id"]
         when = (body.due_date.isoformat() if body.due_date else None) if "due_date" in details else row["due_date"]
+        remind = utc(body.remind_at) if "remind_at" in details else row["remind_at"]
         cursor = db.execute("""UPDATE family_tasks SET done=?,deleted=?,submitted_by=?,submitted_at=?,validated_by=?,title=?,assignee_id=?,due_date=?,
-            version=version+1 WHERE id=? AND version=?""", (state["done"], state["deleted"], state["submitted_by"], state["submitted_at"],
-                                                         state["validated_by"], title, assignee, when, task_id, body.version))
+            remind_at=?,version=version+1 WHERE id=? AND version=?""", (state["done"], state["deleted"], state["submitted_by"], state["submitted_at"],
+                                                                      state["validated_by"], title, assignee, when, remind, task_id, body.version))
         if cursor.rowcount != 1:
             raise HTTPException(409, "Cette tâche a changé sur un autre appareil. Actualisez la liste.")
         # Only a change of « done » moves the series: removing an old finished week keeps the next one.
@@ -406,9 +419,10 @@ def recur(db, row, finished):
     """Finishing a weekly task schedules next week's copy once; reopening it withdraws that copy if untouched."""
     if finished and not row["next_id"]:
         next_id = str(uuid4())
-        db.execute("""INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat)
-            SELECT ?,title,assignee_id,?,created_by,key_task,repeat FROM family_tasks WHERE id=?""",
-                   (next_id, (date.fromisoformat(row["due_date"]) + timedelta(days=7)).isoformat(), row["id"]))
+        remind = row["remind_at"] and (datetime.fromisoformat(row["remind_at"]).astimezone(PARIS) + timedelta(days=7)).astimezone(timezone.utc).isoformat()
+        db.execute("""INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat,remind_at)
+            SELECT ?,title,assignee_id,?,created_by,key_task,repeat,? FROM family_tasks WHERE id=?""",
+                   (next_id, (date.fromisoformat(row["due_date"]) + timedelta(days=7)).isoformat(), remind, row["id"]))
         db.execute("UPDATE family_tasks SET next_id=? WHERE id=?", (next_id, row["id"]))
     elif not finished and row["next_id"]:
         db.execute("UPDATE family_tasks SET deleted=1,version=version+1 WHERE id=? AND done=0 AND submitted_by IS NULL", (row["next_id"],))

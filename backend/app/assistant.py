@@ -122,7 +122,8 @@ def briefing(db, user):
             return ""
         return " (EN RETARD, prévue le " + value + ")" if value < today.isoformat() else " (aujourd’hui)" if value == today.isoformat() else f" (pour le {value})"
     tasks = [f"- {row['title']}" + due(row["due_date"])
-             for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id=?
+             + (f" (rappel {datetime.fromisoformat(row['remind_at']).astimezone(PARIS):%d/%m %H:%M})" if row["remind_at"] else "")
+             for row in db.execute("""SELECT title,due_date,remind_at FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id=?
                 ORDER BY due_date IS NULL,due_date LIMIT 20""", (user["id"],))]
     shared = [f"- {row['title']}" + due(row["due_date"])
               for row in db.execute("""SELECT title,due_date FROM family_tasks WHERE deleted=0 AND done=0 AND assignee_id IS NULL
@@ -171,6 +172,10 @@ def briefing(db, user):
         "```karl-task",
         '{"title": "Sortir les poubelles", "due_date": "2026-10-26", "repeat": "weekly"}',
         "```",
+        "Pour un rappel à une heure précise, ajoute remind_at (ISO avec fuseau) ; KARL l’affiche quand l’application est ouverte :",
+        "```karl-task",
+        '{"title": "Appeler le dentiste", "due_date": "2026-10-24", "remind_at": "2026-10-24T09:00:00+02:00"}',
+        "```",
         "```karl-item",
         '{"name": "Lait", "quantity": "2 bouteilles", "category": "Frais"}',
         "```",
@@ -204,10 +209,11 @@ def proposal(kind, raw, user, names):
     if kind == "task":
         assignee = raw.get("assignee")
         task = TaskInput(title=raw.get("title", ""), due_date=raw.get("due_date") or None,
-                         repeat="weekly" if raw.get("repeat") in ("weekly", "chaque semaine") else "none",
+                         repeat="weekly" if raw.get("repeat") in ("weekly", "chaque semaine") else "none", remind_at=raw.get("remind_at") or None,
                          assignee_id=names.get(assignee.strip().casefold(), user["id"]) if isinstance(assignee, str) else user["id"])
         return {"kind": "task", "title": task.title, "due_date": task.due_date.isoformat() if task.due_date else None,
-                "assignee_id": task.assignee_id, "repeat": task.repeat, "ref": None}
+                "assignee_id": task.assignee_id, "repeat": task.repeat,
+                "remind_at": task.remind_at.astimezone(timezone.utc).isoformat() if task.remind_at else None, "ref": None}
     if kind == "item":
         name = raw.get("name", "")
         item = ItemInput(name=name, quantity=raw.get("quantity") or "",
@@ -382,8 +388,8 @@ def make_task(db, proposal, user):
     if db.execute("SELECT COUNT(*) FROM family_tasks WHERE deleted=0").fetchone()[0] >= 2000:
         raise HTTPException(409, "La liste est pleine. Retirez les anciennes tâches.")
     task_id = str(uuid4())
-    db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,repeat) VALUES(?,?,?,?,?,?)",
-               (task_id, proposal["title"], assignee, proposal["due_date"], user["id"], proposal.get("repeat", "none")))
+    db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,repeat,remind_at) VALUES(?,?,?,?,?,?,?)",
+               (task_id, proposal["title"], assignee, proposal["due_date"], user["id"], proposal.get("repeat", "none"), proposal.get("remind_at")))
     return task_id
 
 

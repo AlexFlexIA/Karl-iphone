@@ -95,7 +95,9 @@ def initialize():
         for column, kind in [("key_task", "INTEGER NOT NULL DEFAULT 0"), ("submitted_by", "TEXT REFERENCES family_members(id)"),
                              ("submitted_at", "TEXT"), ("validated_by", "TEXT REFERENCES family_members(id)"),
                              # Additive migration: a weekly task comes back a week later once done.
-                             ("repeat", "TEXT NOT NULL DEFAULT 'none'"), ("next_id", "TEXT")]:
+                             ("repeat", "TEXT NOT NULL DEFAULT 'none'"), ("next_id", "TEXT"),
+                             # Additive migration: an optional reminder time, shown while KARL is open.
+                             ("remind_at", "TEXT")]:
             if column not in columns:
                 db.execute(f"ALTER TABLE family_tasks ADD COLUMN {column} {kind}")
 

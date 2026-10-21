@@ -4,7 +4,7 @@ import { Icon } from '../icons'
 import { readDraft, writeDraft } from './api'
 import type { Ctx } from './context'
 import type { Task } from './model'
-import { due, plural } from './model'
+import { clock, due, plural, timeKey } from './model'
 import { Badge, Empty, Person, ScreenHead, Sheet, Skeleton, useOptimistic } from './ui'
 
 export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
@@ -28,6 +28,7 @@ export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
         <span className="row-meta">
           {!!task.key_task && <span className="tag tag-key"><Icon name="key" />Tâche clé</span>}
           {task.repeat === 'weekly' && <span className="tag"><Icon name="refresh" />Chaque semaine</span>}
+          {task.remind_at && !task.done && <span className="due"><Icon name="clock" />Rappel {clock(task.remind_at)}</span>}
           <Person member={ctx.find(task.assignee_id)} />
           {deadline && !waiting && <span className={deadline.late ? 'due due-late' : 'due'}>{deadline.late && <Icon name="alert" />}{deadline.label}</span>}
           {waiting && <span className="tag tag-strong"><Icon name="clock" />Faite par {ctx.find(task.submitted_by)?.name ?? 'un membre'} · à valider</span>}
@@ -51,6 +52,7 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
   const [date, setDate] = useState('')
   const [key, setKey] = useState(false)
   const [weekly, setWeekly] = useState(false)
+  const [remind, setRemind] = useState('')
   const parent = ctx.user.role === 'admin'
   const tasks = ctx.data?.tasks ?? []
   const open = tasks.filter(task => !task.done)
@@ -66,8 +68,8 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
   async function add(event: FormEvent) {
     event.preventDefault()
     if (await ctx.run(async () => {
-      await ctx.api('family/tasks', { method: 'POST', body: JSON.stringify({ title, assignee_id: assignee || null, due_date: date || null, key_task: parent && key, repeat: weekly ? 'weekly' : 'none' }) })
-    }, parent && key ? 'Tâche clé ajoutée : tu valideras quand elle sera faite.' : '')) { update(''); setDate(''); setKey(false); setWeekly(false) }
+      await ctx.api('family/tasks', { method: 'POST', body: JSON.stringify({ title, assignee_id: assignee || null, due_date: date || null, key_task: parent && key, repeat: weekly ? 'weekly' : 'none', remind_at: date && remind ? new Date(`${date}T${remind}`).toISOString() : null }) })
+    }, parent && key ? 'Tâche clé ajoutée : tu valideras quand elle sera faite.' : '')) { update(''); setDate(''); setKey(false); setWeekly(false); setRemind('') }
   }
 
   return <section>
@@ -85,8 +87,10 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
         <span><strong><Icon name="refresh" />Chaque semaine</strong><span className="muted">Une fois faite, la tâche revient automatiquement la semaine suivante.</span></span></label>
       <div className="compose-row">
         <div className="field"><label htmlFor="task-date">Pour quand ? <span className="optional">{weekly ? 'première fois' : 'facultatif'}</span></label><input id="task-date" type="date" value={date} required={weekly} onChange={event => setDate(event.target.value)} /></div>
+        <div className="field field-time"><label htmlFor="task-remind">Rappel <span className="optional">heure</span></label><input id="task-remind" type="time" value={remind} disabled={!date} onChange={event => setRemind(event.target.value)} aria-describedby="task-remind-help" /></div>
         <button className="btn btn-gold" disabled={ctx.disabled || !title.trim()}><Icon name="plus" />Ajouter</button>
       </div>
+      <p id="task-remind-help" className="muted">Le rappel s’affiche sur l’Accueil à l’heure dite, et en notification si KARL est ouvert. Choisissez d’abord une date.</p>
     </form>
     {!ctx.data ? <Skeleton /> : !open.length && <Empty title="Tout est fait. Bravo !" />}
     {groups.map(group => <section className="group" key={group.key} aria-labelledby={'tasks-' + group.key}>
@@ -103,8 +107,10 @@ function TaskForm({ ctx, task, onDone }: { ctx: Ctx; task: Task; onDone: () => v
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    const day = String(form.get('due') || ''), at = String(form.get('remind') || '')
     if (await ctx.run(async () => {
-      await ctx.api('family/tasks/' + task.id, { method: 'PATCH', body: JSON.stringify({ version: task.version, title: form.get('title'), assignee_id: assignee || null, due_date: form.get('due') || null }) })
+      await ctx.api('family/tasks/' + task.id, { method: 'PATCH', body: JSON.stringify({ version: task.version, title: form.get('title'), assignee_id: assignee || null, due_date: day || null,
+        remind_at: day && at ? new Date(`${day}T${at}`).toISOString() : null }) })
     }, 'Tâche modifiée.')) onDone()
   }
   return <form className="sheet-body" onSubmit={save}>
@@ -115,6 +121,8 @@ function TaskForm({ ctx, task, onDone }: { ctx: Ctx; task: Task; onDone: () => v
     </fieldset>
     <div className="field"><label htmlFor="edit-task-due">Pour quand ? <span className="optional">{task.repeat === 'weekly' ? 'obligatoire, chaque semaine' : 'facultatif'}</span></label>
       <input id="edit-task-due" name="due" type="date" defaultValue={task.due_date ?? ''} required={task.repeat === 'weekly'} /></div>
+    <div className="field field-narrow"><label htmlFor="edit-task-remind">Rappel <span className="optional">heure, avec une date</span></label>
+      <input id="edit-task-remind" name="remind" type="time" defaultValue={task.remind_at ? timeKey(new Date(task.remind_at)) : ''} /></div>
     <div className="sheet-actions"><span /><button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button></div>
   </form>
 }

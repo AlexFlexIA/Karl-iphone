@@ -253,5 +253,16 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual((task['title'], task['repeat']), ('Poubelles', 'weekly'))
 
 
+    def test_hermes_can_propose_a_reminder_time_which_shows_in_context(self):
+        text = '```karl-task\n{"title": "Dentiste", "due_date": "2099-11-03", "remind_at": "2099-11-03T09:00:00+01:00"}\n```'
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertEqual(reply['proposals'][0]['remind_at'], '2099-11-03T08:00:00+00:00')
+        self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0}).raise_for_status()
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')) as complete:
+            self.ask(str(uuid4()))
+        self.assertIn('Dentiste (pour le 2099-11-03) (rappel 03/11 09:00)', complete.call_args.args[0][0]['content'])
+
+
 if __name__ == '__main__':
     unittest.main()

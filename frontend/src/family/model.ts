@@ -4,7 +4,7 @@ export type Session = { user: User | null; csrf: string | null; google_enabled: 
 export type Item = { id: string; name: string; quantity: string; category: string; checked: number; version: number; author: string }
 export type Task = {
   id: string; title: string; assignee_id: string | null; due_date: string | null; done: number; created_by: string; version: number
-  key_task: number; submitted_by: string | null; submitted_at: string | null; validated_by: string | null; repeat?: 'none' | 'weekly'
+  key_task: number; submitted_by: string | null; submitted_at: string | null; validated_by: string | null; repeat?: 'none' | 'weekly'; remind_at?: string | null
 }
 export type FamilyEvent = {
   id: string; title: string; starts_at: string; ends_at: string; series_starts_at: string; series_ends_at: string
@@ -48,6 +48,8 @@ export function due(date: string | null, today: string): { label: string; late: 
   return { label: shortDate(date), late: false }
 }
 
+// Reminders concern the person the task is for, or its author when it is for everyone.
+export const remindsMe = (task: Task, me: string) => !task.done && !!task.remind_at && (task.assignee_id === me || (!task.assignee_id && task.created_by === me))
 export const eventDay = (event: FamilyEvent) => dateKey(new Date(event.starts_at))
 
 export const answerText: Record<Answer, string> = { pending: 'attend sa réponse', yes: 'a accepté', no: 'a décliné' }

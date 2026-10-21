@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../icons'
+import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
 import { Badge, badgeOf, ScreenHead } from './ui'
 
@@ -85,6 +86,7 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
     </details>}
 
     <HermesSettings ctx={ctx} />
+    <ReminderSettings ctx={ctx} />
 
     <section className="group" aria-labelledby="install-title" id="install">
       <h2 className="group-title" id="install-title">Installer KARL</h2>
@@ -149,5 +151,24 @@ function HermesSettings({ ctx }: { ctx: Ctx }) {
         <dt>Jamais</dt><dd>Acheter ou commander, y compris sur le Drive ; envoyer un e-mail ou un message ; supprimer un fichier, un dossier ou une donnée. KARL ne lui donne pas ces droits.</dd>
       </dl>
     </details>
+  </section>
+}
+
+// Notifications only while KARL is open in a tab or the installed app: there is no push server.
+function ReminderSettings({ ctx }: { ctx: Ctx }) {
+  const supported = typeof window !== 'undefined' && 'Notification' in window
+  const [on, setOn] = useState(() => supported && Notification.permission === 'granted' && readPreference('notifications') === 'on')
+  async function toggle(next: boolean) {
+    if (!next) { writePreference('notifications', 'off'); setOn(false); return }
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission().catch(() => 'denied' as const)
+    if (permission === 'granted') { writePreference('notifications', 'on'); setOn(true); ctx.notify('Notifications de rappel activées sur cet appareil.') }
+    else ctx.notify('Notifications refusées par l’appareil. Les rappels restent visibles sur l’Accueil.')
+  }
+  return <section className="group" aria-labelledby="reminders-title">
+    <h2 className="group-title" id="reminders-title">Rappels</h2>
+    {supported ? <label className="key-toggle"><input type="checkbox" className="check" checked={on} onChange={event => void toggle(event.target.checked)} />
+      <span><strong>Notifications sur cet appareil</strong><span className="muted">Quand KARL est ouvert, un rappel arrivé à son heure s’affiche aussi en notification.</span></span></label>
+      : <p className="muted">Cet appareil n’affiche pas de notifications web ici : les rappels apparaissent sur l’Accueil et en bandeau quand KARL est ouvert.</p>}
+    <p className="muted">KARL n’envoie rien quand l’application est fermée.</p>
   </section>
 }

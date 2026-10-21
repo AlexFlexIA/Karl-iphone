@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../icons'
 import { Assistant } from './Assistant'
 import { Logo } from './Logo'
-import { ApiError, request } from './api'
+import { ApiError, readPreference, request } from './api'
 import type { Ctx } from './context'
 import { EventForm } from './EventForm'
 import { Me } from './Me'
 import type { FamilyEvent, Session, Snapshot, View } from './model'
-import { addDays, dateKey, monday, timeKey } from './model'
+import { addDays, dateKey, monday, remindsMe, timeKey } from './model'
 import { Planning } from './Planning'
 import { Shopping } from './Shopping'
 import { Tasks } from './Tasks'
@@ -118,6 +118,20 @@ export default function FamilyApp({ onPersonal }: { onPersonal: () => void }) {
     document.getElementById('main')?.focus({ preventScroll: true })
   }
   function changeWeek(next: Date) { setData(null); setWeek(monday(next)) }
+
+  // Reminders fire while KARL is open: a toast, plus a system notification if this device allowed it.
+  useEffect(() => {
+    if (!user || !data) return
+    let seen: string[] = []
+    try { seen = JSON.parse(localStorage.getItem('karl-reminded') ?? '[]') } catch { /* Storage blocked: may repeat once. */ }
+    const fresh = data.tasks.filter(task => remindsMe(task, user.id) && new Date(task.remind_at!) <= now && !seen.includes(task.id + task.remind_at))
+    if (!fresh.length) return
+    setNotice(fresh.length > 1 ? `Rappels : ${fresh.map(task => task.title).join(', ')}` : `Rappel : ${fresh[0].title}`)
+    if ('Notification' in window && Notification.permission === 'granted' && readPreference('notifications') === 'on') {
+      for (const task of fresh) { try { new Notification('KARL · rappel', { body: task.title, tag: task.id }) } catch { /* iOS without push: the toast is enough. */ } }
+    }
+    try { localStorage.setItem('karl-reminded', JSON.stringify([...seen, ...fresh.map(task => task.id + task.remind_at)].slice(-200))) } catch { /* Convenience only. */ }
+  }, [data, now, user])
 
   const members = useMemo(() => data?.members.filter(member => member.active) ?? [], [data])
   const disabled = busy || !online

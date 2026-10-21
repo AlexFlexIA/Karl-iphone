@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
-import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, plural } from './model'
+import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, plural, remindsMe } from './model'
 import type { FamilyEvent, ShoppingLine } from './model'
 import { QuickAdd } from './Shopping'
 import { TaskRow } from './Tasks'
@@ -31,6 +31,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []
   const invites = data?.pending ?? []
   const toReview = user.role === 'admin' ? data?.tasks.filter(task => task.key_task && !task.done && task.submitted_by) ?? [] : []
+  const ringing = data?.tasks.filter(task => remindsMe(task, user.id) && new Date(task.remind_at!) <= ctx.now) ?? []
   const meals = data?.meals.filter(meal => meal.day === today) ?? []
   const menu = ([['lunch', 'Midi'], ['dinner', 'Soir']] as const).map(([slot, name]) => [name, meals.filter(meal => meal.slot === slot).map(meal => meal.title).join(', ')] as const)
     .filter(([, dishes]) => dishes)
@@ -52,6 +53,10 @@ export function Today({ ctx }: { ctx: Ctx }) {
       <Icon name="share" />
       <div><p>Ajoute KARL à ton écran d’accueil pour l’ouvrir comme une app.</p><button className="btn-quiet" onClick={() => ctx.go('me')}>Voir comment</button></div>
       <button className="icon-btn" aria-label="Masquer ce conseil" onClick={() => { writePreference('install-hint', 'hidden'); setInstallHint(false) }}><Icon name="close" /></button>
+    </aside>}
+    {ringing.length > 0 && <aside className="reminders" aria-labelledby="today-reminders">
+      <h2 id="today-reminders"><Icon name="clock" />{ringing.length > 1 ? 'Rappels' : 'Rappel'}</h2>
+      <ul className="rows">{ringing.map(task => <TaskRow ctx={ctx} task={task} key={task.id} />)}</ul>
     </aside>}
     {missing.length > 0 && <aside className="hint" aria-label="Suggestion">
       <Icon name="cart" />

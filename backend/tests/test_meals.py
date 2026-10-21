@@ -220,5 +220,18 @@ class MealTests(unittest.TestCase):
         self.assertEqual(aisles, {'Pommes': 'Fruits et légumes', 'Lessive': 'Maison', 'Piles': 'Maison', 'Yaourts': 'Autres', 'Bougies': 'Autres'})
 
 
+    def test_reminders_are_stored_in_utc_follow_weekly_copies_and_can_be_cleared(self):
+        self.assertEqual(self.post('tasks', {'title': 'X', 'remind_at': '2026-11-02T08:00:00'}).status_code, 422)
+        task = self.post('tasks', {'title': 'Médicament', 'due_date': '2026-10-24', 'repeat': 'weekly',
+                                   'remind_at': '2026-10-24T08:00:00+02:00'}).json()['id']
+        rows = lambda: sorted((t['due_date'], t['remind_at']) for t in self.client.get('/api/family/tasks').json()['tasks'])
+        self.assertEqual(rows(), [('2026-10-24', '2026-10-24T06:00:00+00:00')])
+        self.client.patch('/api/family/tasks/' + task, headers=self.headers, json={'version': 1, 'done': True}).raise_for_status()
+        # Next week crosses the switch to winter time: still 8:00 in Paris.
+        self.assertEqual(rows(), [('2026-10-24', '2026-10-24T06:00:00+00:00'), ('2026-10-31', '2026-10-31T07:00:00+00:00')])
+        self.client.patch('/api/family/tasks/' + task, headers=self.headers, json={'version': 2, 'remind_at': None}).raise_for_status()
+        self.assertIn(('2026-10-24', None), rows())
+
+
 if __name__ == '__main__':
     unittest.main()

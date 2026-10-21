@@ -2,7 +2,7 @@
 Nothing here talks to a shop: the list is prepared in KARL and stays a list."""
 import json
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from fractions import Fraction
 from typing import Annotated, Literal
 from uuid import uuid4
@@ -192,7 +192,7 @@ def meals(first: date, last: date, user=Depends(member)):
     with database() as db:
         rows = planned(db, first, last)
     return {"meals": [{key: row[key] for key in ("id", "day", "slot", "recipe_id", "servings", "created_by", "version")}
-                      | {"title": row["label"], "has_recipe": bool(row["recipe_id"] and row["ingredients"] and not row["recipe_deleted"])}
+                      | {"title": row["label"], "has_recipe": counts(row)}
                       for row in rows]}
 
 
@@ -270,11 +270,16 @@ def copy_week(body: Copy, user=Depends(member)):
     return {"copied": len(copied)}
 
 
+def counts(meal):
+    """A dish adds to the shopping only with a live recipe that lists at least one ingredient."""
+    return bool(meal["recipe_id"] and meal["ingredients"] and json.loads(meal["ingredients"]) and not meal["recipe_deleted"])
+
+
 def needs(db, first, last):
     """Ingredients of every planned meal, scaled to its portions."""
     dishes, without = [], 0
     for meal in planned(db, first, last):
-        if not meal["recipe_id"] or not meal["ingredients"] or meal["recipe_deleted"]:
+        if not counts(meal):
             without += 1
             continue
         dishes.append((meal["label"], json.loads(meal["ingredients"]), meal["servings"] / (meal["recipe_servings"] or 1)))
@@ -297,8 +302,11 @@ def totals(db, dishes):
             previous = line["amounts"].get(unit) or 0
             line["amounts"][unit] = previous + item["quantity"] * scale * factor
     listed = {}
-    # A ticked item is already in the trolley: suggesting it again would buy it twice.
-    for row in db.execute("SELECT name,quantity,checked FROM family_items WHERE deleted=0 ORDER BY checked"):
+    # A product ticked in the last three days is in the trolley: suggesting it again would buy it twice. Older ticks
+    # are last week's shopping, left in « Dans le panier », and must not block this week's list.
+    recent = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+    for row in db.execute("""SELECT name,quantity,checked FROM family_items WHERE deleted=0 AND (checked=0 OR updated_at>=?)
+            ORDER BY checked""", (recent,)):
         listed.setdefault(key_of(row["name"]), "dans le panier" if row["checked"] else row["quantity"] or "sur la liste")
     result = []
     for line in sorted(lines.values(), key=lambda value: (value["category"], plain(value["name"]))):

@@ -336,5 +336,22 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('"accepte": false', replayed)
 
 
+    @patch.dict(os.environ, {"KARL_ASSISTANT_DAILY_LIMIT": "10"})
+    def test_numbers_shared_tasks_and_accented_recipe_titles(self):
+        self.client.post('/api/family/recipes', headers=self.headers, json={'title': 'Écrasé de pommes de terre', 'ingredients': ['1 kg de pommes de terre']}).raise_for_status()
+        text = ('```karl-item\n{"name": "Lait", "quantity": 2}\n```'
+                '\n```karl-task\n{"title": "Poubelles", "due_date": "2026-11-02", "assignee": "toute la famille"}\n```'
+                '\n```karl-task\n{"title": "Devoirs"}\n```'
+                '\n```karl-meal\n{"day": "2026-11-02", "slot": "soir", "title": "écrasé de pommes de terre"}\n```')
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        item, shared, mine, meal = reply['proposals']
+        self.assertEqual(item['quantity'], '2')
+        self.assertEqual((shared['assignee_id'], mine['assignee_id']), (None, self.parent['user']['id']))
+        self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 3}).raise_for_status()
+        [planned] = self.client.get('/api/family/meals?first=2026-11-02&last=2026-11-02').json()['meals']
+        self.assertTrue(planned['has_recipe'])
+
+
 if __name__ == '__main__':
     unittest.main()

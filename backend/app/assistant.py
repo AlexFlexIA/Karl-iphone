@@ -16,7 +16,7 @@ from .family import CATEGORIES, PARIS, EventInput, ItemInput, TaskInput, now, oc
 from .family_auth import member
 from .meals import MealInput, RecipeInput, ingredients_of
 from .store import database
-from .words import aisle_of
+from .words import aisle_of, plain
 
 router = APIRouter(prefix="/api/family/assistant")
 PROPOSAL = re.compile(r"```karl-(event|task|item|memory|meal|recipe)\s*\n(.*?)```", re.S)
@@ -163,6 +163,8 @@ def briefing(db, user):
         "```karl-task",
         '{"title": "Prendre rendez-vous chez le dentiste", "due_date": "2026-10-24", "assignee": "' + user["name"] + '"}',
         "```",
+        "Pour une tâche de toute la famille, mets \"assignee\": \"toute la famille\" ; sans assignee, elle est pour "
+        + user["name"] + ".",
         "Ajoute \"repeat\": \"weekly\" pour une tâche qui revient chaque semaine (une date est alors obligatoire) :",
         "```karl-task",
         '{"title": "Sortir les poubelles", "due_date": "2026-10-26", "repeat": "weekly"}',
@@ -204,9 +206,11 @@ def proposal(kind, raw, user, names):
                 "location": event.location.strip(), "attendees": event.attendees, "event_id": None}
     if kind == "task":
         assignee = raw.get("assignee")
+        # « toute la famille » (or null) is a shared task; no assignee at all means the member who asked.
+        shared = assignee is None and "assignee" in raw or (isinstance(assignee, str) and plain(assignee) in ("toute la famille", "tous", "famille"))
         task = TaskInput(title=raw.get("title", ""), due_date=raw.get("due_date") or None,
                          repeat="weekly" if raw.get("repeat") in ("weekly", "chaque semaine") else "none", remind_at=raw.get("remind_at") or None,
-                         assignee_id=names.get(assignee.strip().casefold(), user["id"]) if isinstance(assignee, str) else user["id"])
+                         assignee_id=None if shared else names.get(assignee.strip().casefold(), user["id"]) if isinstance(assignee, str) else user["id"])
         return {"kind": "task", "title": task.title, "due_date": task.due_date.isoformat() if task.due_date else None,
                 "assignee_id": task.assignee_id, "repeat": task.repeat,
                 "remind_at": task.remind_at.astimezone(timezone.utc).isoformat() if task.remind_at else None, "ref": None}
@@ -215,7 +219,8 @@ def proposal(kind, raw, user, names):
         guess = aisle_of(name) if isinstance(name, str) else "Autres"
         # An aisle KARL does not know (« Epicerie », « Boissons ») falls back to the guess instead of losing the item.
         category = raw.get("category") if raw.get("category") in get_args(CATEGORIES) else guess
-        item = ItemInput(name=name, quantity=raw.get("quantity") or "", category=category)
+        quantity = raw.get("quantity")
+        item = ItemInput(name=name, quantity="" if quantity is None else str(quantity), category=category)
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
     if kind == "meal":
         slot = {"midi": "lunch", "soir": "dinner"}.get(str(raw.get("slot", "soir")).casefold(), raw.get("slot"))
@@ -393,36 +398,45 @@ async def chat(body: Ask, user=Depends(allowed)):
     if lock.locked():
         raise HTTPException(409, "Une réponse est déjà en cours. Attendez-la avant d’écrire.")
     async with lock:
-        with database() as db:
-            if thread_for(db, body.thread_id, user) is None and \
-                    db.execute("SELECT COUNT(*) FROM family_threads WHERE member_id=?", (user["id"],)).fetchone()[0] >= 200:
-                raise HTTPException(409, "Trop de conversations. Supprimez-en quelques-unes.")
-            if used_today(db, user) >= daily_limit():
-                raise HTTPException(429, "Limite de messages atteinte pour aujourd’hui. L’assistant revient demain.")
-            history = db.execute("""SELECT role,content,proposals FROM family_thread_messages WHERE thread_id=?
-                ORDER BY id DESC LIMIT 20""", (str(body.thread_id),)).fetchall()
-            context = briefing(db, user)
-            names = {row["id"]: row["name"] for row in db.execute("SELECT id,name FROM family_members")}
-        messages = [{"role": "system", "content": context},
-                    *({"role": row["role"], "content": with_blocks(row, names)} for row in reversed(history)),
-                    {"role": "user", "content": message}]
+        # SQLite work runs in a worker thread: a long briefing must not hold up the other phones' requests.
+        messages = await asyncio.to_thread(prepare, body, user, message)
         try:
             reply = await complete(messages)
         except Unavailable as exc:
             raise HTTPException(502, str(exc)) from exc
-        with database() as db, db:
-            text, found = proposals(db, user, reply)
-            stamp = now()
-            db.execute("""INSERT INTO family_threads(id,member_id,title,updated_at) VALUES(?,?,?,?)
-                ON CONFLICT(id) DO UPDATE SET updated_at=excluded.updated_at""", (str(body.thread_id), user["id"], message[:80], stamp))
-            db.execute("INSERT INTO family_thread_messages(thread_id,role,content,created_at) VALUES(?,?,?,?)",
-                       (str(body.thread_id), "user", message, stamp))
-            db.execute("""INSERT INTO family_assistant_usage(member_id,day,count) VALUES(?,?,1)
-                ON CONFLICT(member_id,day) DO UPDATE SET count=count+1""", (user["id"], datetime.now(PARIS).date().isoformat()))
-            cursor = db.execute("INSERT INTO family_thread_messages(thread_id,role,content,proposals,created_at) VALUES(?,?,?,?,?)",
-                                (str(body.thread_id), "assistant", text, json.dumps(found), stamp))
-            row = db.execute("SELECT * FROM family_thread_messages WHERE id=?", (cursor.lastrowid,)).fetchone()
+        row = await asyncio.to_thread(record, body, user, message, reply)
     return {"message": public(row)}
+
+
+def prepare(body, user, message):
+    with database() as db:
+        if thread_for(db, body.thread_id, user) is None and \
+                db.execute("SELECT COUNT(*) FROM family_threads WHERE member_id=?", (user["id"],)).fetchone()[0] >= 200:
+            raise HTTPException(409, "Trop de conversations. Supprimez-en quelques-unes.")
+        if used_today(db, user) >= daily_limit():
+            raise HTTPException(429, "Limite de messages atteinte pour aujourd’hui. L’assistant revient demain.")
+        history = db.execute("""SELECT role,content,proposals FROM family_thread_messages WHERE thread_id=?
+            ORDER BY id DESC LIMIT 20""", (str(body.thread_id),)).fetchall()
+        context = briefing(db, user)
+        names = {row["id"]: row["name"] for row in db.execute("SELECT id,name FROM family_members")}
+    return [{"role": "system", "content": context},
+            *({"role": row["role"], "content": with_blocks(row, names)} for row in reversed(history)),
+            {"role": "user", "content": message}]
+
+
+def record(body, user, message, reply):
+    with database() as db, db:
+        text, found = proposals(db, user, reply)
+        stamp = now()
+        db.execute("""INSERT INTO family_threads(id,member_id,title,updated_at) VALUES(?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET updated_at=excluded.updated_at""", (str(body.thread_id), user["id"], message[:80], stamp))
+        db.execute("INSERT INTO family_thread_messages(thread_id,role,content,created_at) VALUES(?,?,?,?)",
+                   (str(body.thread_id), "user", message, stamp))
+        db.execute("""INSERT INTO family_assistant_usage(member_id,day,count) VALUES(?,?,1)
+            ON CONFLICT(member_id,day) DO UPDATE SET count=count+1""", (user["id"], datetime.now(PARIS).date().isoformat()))
+        cursor = db.execute("INSERT INTO family_thread_messages(thread_id,role,content,proposals,created_at) VALUES(?,?,?,?,?)",
+                            (str(body.thread_id), "assistant", text, json.dumps(found), stamp))
+        return db.execute("SELECT * FROM family_thread_messages WHERE id=?", (cursor.lastrowid,)).fetchone()
 
 
 class Confirm(BaseModel):
@@ -497,7 +511,9 @@ def make_item(db, proposal, user):
 
 
 def make_meal(db, proposal, user):
-    recipe = db.execute("SELECT id,title FROM family_recipes WHERE deleted=0 AND title=? COLLATE NOCASE LIMIT 1", (proposal["title"],)).fetchone()
+    # Matched in Python: SQLite's NOCASE ignores case for ASCII only, so « Écrasé » would miss « écrasé ».
+    recipe = next((row for row in db.execute("SELECT id,title FROM family_recipes WHERE deleted=0")
+                   if row["title"].casefold() == proposal["title"].casefold()), None)
     if db.execute("SELECT COUNT(*) FROM family_meals WHERE deleted=0 AND day=?", (proposal["day"],)).fetchone()[0] >= 12:
         raise HTTPException(409, "Ce jour compte déjà beaucoup de repas. Retirez-en un.")
     meal_id = str(uuid4())

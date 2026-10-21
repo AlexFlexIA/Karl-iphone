@@ -44,20 +44,26 @@ PHRASES = {"pomme de terre": "Fruits et légumes", "lait de coco": "Épicerie", 
 STOPWORDS = {"de", "d'", "du", "des", "la", "le", "les", "a", "au", "aux", "en", "et"}
 
 
+VOCABULARY = {aisle: {key_of(term) for term in terms.split()} for aisle, terms in AISLES.items()}
+
+
 def significant(name):
     return [word for word in key_of(name).replace("d'", "").split() if word not in STOPWORDS]
+
+
+# Built once: the aisle guess runs for every ingredient line and every item added.
+PHRASE_KEYS = {" " + " ".join(significant(phrase)) + " ": aisle for phrase, aisle in PHRASES.items()}
 
 
 def aisle_of(name):
     """Phrase first, then the head noun (the first word: « sauce tomate » is a sauce), then any other word."""
     words = significant(name)
     text = " " + " ".join(words) + " "
-    for phrase, aisle in PHRASES.items():
-        if " " + " ".join(significant(phrase)) + " " in text:
+    for phrase, aisle in PHRASE_KEYS.items():
+        if phrase in text:
             return aisle
-    vocabulary = {aisle: {key_of(term) for term in terms.split()} for aisle, terms in AISLES.items()}
     for word in words:
-        for aisle, terms in vocabulary.items():
+        for aisle, terms in VOCABULARY.items():
             if word in terms:
                 return aisle
     return "Autres"

@@ -316,5 +316,22 @@ class MealTests(unittest.TestCase):
         self.assertEqual(joined, {'Ado': True, 'Jamais venu': False})
 
 
+    def test_empty_recipes_do_not_count_and_old_ticks_do_not_block(self):
+        from app.store import database
+        empty = self.recipe('Surprise', 4, [])
+        self.post('meals', {'day': '2026-11-02', 'recipe_id': empty})
+        soup = self.recipe('Soupe', 4, ['1 l de lait'])
+        self.post('meals', {'day': '2026-11-03', 'recipe_id': soup})
+        lait = self.post('items', {'name': 'Lait'}).json()['id']
+        self.client.patch('/api/family/items/' + lait, headers=self.headers, json={'version': 1, 'checked': True}).raise_for_status()
+        meals = {m['title']: m['has_recipe'] for m in self.client.get('/api/family/meals?first=2026-11-02&last=2026-11-08').json()['meals']}
+        self.assertEqual(meals, {'Surprise': False, 'Soupe': True})
+        self.assertEqual(self.preview()['without_recipe'], 1)
+        self.assertEqual(self.preview()['lines'][0]['on_list'], 'dans le panier')
+        with database() as db, db:
+            db.execute("UPDATE family_items SET updated_at='2020-01-01T00:00:00+00:00' WHERE id=?", (lait,))
+        self.assertIsNone(self.preview()['lines'][0]['on_list'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -30,15 +30,22 @@ export function Meals({ ctx }: { ctx: Ctx }) {
   const shown = useRef(first)
   shown.current = first
 
-  const load = useCallback(async () => {
+  // The recipe book changes rarely: on the 15 s poll it is fetched again at most once a minute; after an edit, always.
+  const bookAt = useRef(0)
+  // After removing a recipe the book is followed closely for a while, so the removal and its undo show at once.
+  const watchBook = useRef(0)
+  const load = useCallback(async (book = true) => {
     try {
-      const [planned, book] = await Promise.all([api(`family/meals?first=${first}&last=${last}`), api('family/recipes')])
+      const withBook = book || Date.now() - bookAt.current > 60000 || Date.now() < watchBook.current
+      const [planned, recipesNow] = await Promise.all([api(`family/meals?first=${first}&last=${last}`), withBook ? api('family/recipes') : null])
       if (shown.current !== first) return
-      setMeals(planned.meals); setRecipes(book.recipes); setProblem('')
+      setMeals(planned.meals); if (recipesNow) { setRecipes(recipesNow.recipes); bookAt.current = Date.now() }
+      setProblem('')
     } catch (e) { if (shown.current === first) setProblem(e instanceof Error ? e.message : 'Menu indisponible.') }
   }, [api, first, last])
-  // Follows the app's refresh cycle, so undo, other devices and the 15 s poll all show up here.
-  useEffect(() => { void load() }, [load, ctx.data?.at])
+  // Follows the app's refresh cycle, so undo, other devices and the poll all show up here.
+  const polled = useRef(false)
+  useEffect(() => { void load(!polled.current); polled.current = true }, [load, ctx.data?.at])
 
   const shift = (weeks: number) => { setMeals(null); setWeek(addDays(week, weeks * 7)) }
   const close = () => setOpen(null)
@@ -57,7 +64,7 @@ export function Meals({ ctx }: { ctx: Ctx }) {
       <button className="icon-btn" aria-label="Semaine suivante" onClick={() => shift(1)}><Icon name="chevron" /></button>
     </div>
     {problem && <div className="banner banner-error" role="alert"><Icon name="alert" /><span>{problem}</span>
-      <button className="btn btn-secondary btn-small" disabled={!ctx.online} onClick={() => void load()}>Réessayer</button></div>}
+      <button className="btn btn-secondary btn-small" disabled={!ctx.online} onClick={() => void load(true)}>Réessayer</button></div>}
     <div className="meals-actions">
       <button className="btn btn-gold" disabled={ctx.disabled || !withRecipe} onClick={() => setOpen({ kind: 'shopping' })}><Icon name="cart" />Courses du menu</button>
       <button className="btn btn-secondary" disabled={ctx.disabled || !meals} onClick={() => void copyLastWeek()}><Icon name="copy" />Reprendre la semaine précédente</button>
@@ -104,7 +111,7 @@ export function Meals({ ctx }: { ctx: Ctx }) {
             <Icon name="chevron" /></button>
           {ctx.canManage(recipe.created_by) && <>
             <button className="icon-btn" aria-label={'Modifier ' + recipe.title} disabled={ctx.disabled} onClick={() => setOpen({ kind: 'recipe', recipe })}><Icon name="edit" /></button>
-            <button className="icon-btn" aria-label={'Retirer ' + recipe.title} disabled={ctx.disabled} onClick={() => ctx.remove('recipes/' + recipe.id, recipe.version, recipe.title)}><Icon name="trash" /></button>
+            <button className="icon-btn" aria-label={'Retirer ' + recipe.title} disabled={ctx.disabled} onClick={() => { watchBook.current = Date.now() + 30000; ctx.remove('recipes/' + recipe.id, recipe.version, recipe.title) }}><Icon name="trash" /></button>
           </>}
         </li>)}</ul>}
     </section>

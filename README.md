@@ -57,6 +57,10 @@ Quand une activité concerne d’autres membres (participants ou accompagnateur)
 
 Un administrateur peut marquer une tâche comme **tâche clé**. Quand un membre la coche, elle passe « à valider » (colonnes `submitted_by`/`submitted_at`, ajoutées automatiquement) au lieu de « fait » ; un administrateur la **valide** (`validated_by`) ou la renvoie **à refaire**, depuis l’Accueil ou l’écran Tâches. Une tâche clé validée ne peut être rouverte que par un administrateur ; un membre ne peut pas créer de tâche clé.
 
+## Tâches hebdomadaires
+
+Une tâche datée peut être marquée **Chaque semaine** : une fois faite (ou validée pour une tâche clé), KARL crée la même tâche sept jours après sa date, une seule fois. La rouvrir retire cette copie si personne n’y a touché ; retirer une ancienne semaine terminée ne touche pas à la suivante. Colonnes `repeat` et `next_id`, ajoutées automatiquement.
+
 ## Météo de la famille
 
 Carte en tête de l’Accueil, visible par tous les membres : température extérieure de la station Bresser (dernier relevé, signalé s’il a plus de 90 minutes), prévision du jour (ciel, min/max, pluie, vent, matin/après-midi/soir) et couleur Tempo du lendemain avec un conseil d’usage. Station et Tempo viennent de la même projection en lecture seule que le dashboard personnel (`HERMES_CRON_DIR`) ; seuls ces deux relevés sont exposés aux comptes familiaux, jamais les tâches ni les rapports.

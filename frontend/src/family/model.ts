@@ -4,7 +4,7 @@ export type Session = { user: User | null; csrf: string | null; google_enabled: 
 export type Item = { id: string; name: string; quantity: string; category: string; checked: number; version: number; author: string }
 export type Task = {
   id: string; title: string; assignee_id: string | null; due_date: string | null; done: number; created_by: string; version: number
-  key_task: number; submitted_by: string | null; submitted_at: string | null; validated_by: string | null
+  key_task: number; submitted_by: string | null; submitted_at: string | null; validated_by: string | null; repeat?: 'none' | 'weekly'
 }
 export type FamilyEvent = {
   id: string; title: string; starts_at: string; ends_at: string; series_starts_at: string; series_ends_at: string

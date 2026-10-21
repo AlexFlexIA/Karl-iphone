@@ -26,6 +26,7 @@ export function TaskRow({ ctx, task }: { ctx: Ctx; task: Task }) {
         <span className="row-title">{task.title}{task.done ? <span className="sr-only"> (fait)</span> : waiting ? <span className="sr-only"> (à valider)</span> : null}</span>
         <span className="row-meta">
           {!!task.key_task && <span className="tag tag-key"><Icon name="key" />Tâche clé</span>}
+          {task.repeat === 'weekly' && <span className="tag"><Icon name="refresh" />Chaque semaine</span>}
           <Person member={ctx.find(task.assignee_id)} />
           {deadline && !waiting && <span className={deadline.late ? 'due due-late' : 'due'}>{deadline.late && <Icon name="alert" />}{deadline.label}</span>}
           {waiting && <span className="tag tag-strong"><Icon name="clock" />Faite par {ctx.find(task.submitted_by)?.name ?? 'un membre'} · à valider</span>}
@@ -46,6 +47,7 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
   const [assignee, setAssignee] = useState(ctx.user.id)
   const [date, setDate] = useState('')
   const [key, setKey] = useState(false)
+  const [weekly, setWeekly] = useState(false)
   const parent = ctx.user.role === 'admin'
   const tasks = ctx.data?.tasks ?? []
   const open = tasks.filter(task => !task.done)
@@ -61,8 +63,8 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
   async function add(event: FormEvent) {
     event.preventDefault()
     if (await ctx.run(async () => {
-      await ctx.api('family/tasks', { method: 'POST', body: JSON.stringify({ title, assignee_id: assignee || null, due_date: date || null, key_task: parent && key }) })
-    }, parent && key ? 'Tâche clé ajoutée : tu valideras quand elle sera faite.' : '')) { update(''); setDate(''); setKey(false) }
+      await ctx.api('family/tasks', { method: 'POST', body: JSON.stringify({ title, assignee_id: assignee || null, due_date: date || null, key_task: parent && key, repeat: weekly ? 'weekly' : 'none' }) })
+    }, parent && key ? 'Tâche clé ajoutée : tu valideras quand elle sera faite.' : '')) { update(''); setDate(''); setKey(false); setWeekly(false) }
   }
 
   return <section>
@@ -76,8 +78,10 @@ export function Tasks({ ctx }: { ctx: Ctx }) {
       </fieldset>
       {parent && <label className="key-toggle"><input type="checkbox" className="check" checked={key} onChange={event => setKey(event.target.checked)} />
         <span><strong><Icon name="key" />Tâche clé</strong><span className="muted">Quand elle est cochée, un parent vérifie puis valide qu’elle est bien faite.</span></span></label>}
+      <label className="key-toggle"><input type="checkbox" className="check" checked={weekly} onChange={event => setWeekly(event.target.checked)} />
+        <span><strong><Icon name="refresh" />Chaque semaine</strong><span className="muted">Une fois faite, la tâche revient automatiquement la semaine suivante.</span></span></label>
       <div className="compose-row">
-        <div className="field"><label htmlFor="task-date">Pour quand ? <span className="optional">facultatif</span></label><input id="task-date" type="date" value={date} onChange={event => setDate(event.target.value)} /></div>
+        <div className="field"><label htmlFor="task-date">Pour quand ? <span className="optional">{weekly ? 'première fois' : 'facultatif'}</span></label><input id="task-date" type="date" value={date} required={weekly} onChange={event => setDate(event.target.value)} /></div>
         <button className="btn btn-gold" disabled={ctx.disabled || !title.trim()}><Icon name="plus" />Ajouter</button>
       </div>
     </form>

@@ -281,8 +281,15 @@ class TaskInput(BaseModel):
     assignee_id: str | None = Field(default=None, max_length=80)
     due_date: date | None = None
     key_task: bool = False
+    repeat: Literal["none", "weekly"] = "none"
 
     _title = field_validator("title")(required)
+
+    @model_validator(mode="after")
+    def dated_repeat(self):
+        if self.repeat == "weekly" and not self.due_date:
+            raise ValueError("Une tâche hebdomadaire a besoin d’une date.")
+        return self
 
 
 class TaskChange(BaseModel):
@@ -307,8 +314,9 @@ def add_task(body: TaskInput, user=Depends(member)):
         active_ids(db, [body.assignee_id])
         if db.execute("SELECT COUNT(*) FROM family_tasks WHERE deleted=0").fetchone()[0] >= 2000:
             raise HTTPException(409, "La liste est pleine. Retirez les anciennes tâches.")
-        db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task) VALUES(?,?,?,?,?,?)",
-                   (task_id, body.title, body.assignee_id, body.due_date.isoformat() if body.due_date else None, user["id"], body.key_task))
+        db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat) VALUES(?,?,?,?,?,?,?)",
+                   (task_id, body.title, body.assignee_id, body.due_date.isoformat() if body.due_date else None, user["id"], body.key_task,
+                    body.repeat))
     return {"id": task_id}
 
 
@@ -347,7 +355,23 @@ def update_task(task_id: str, body: TaskChange, user=Depends(member)):
                                           state["validated_by"], task_id, body.version))
         if cursor.rowcount != 1:
             raise HTTPException(409, "Cette tâche a changé sur un autre appareil. Actualisez la liste.")
+        # Only a change of « done » moves the series: removing an old finished week keeps the next one.
+        if row["repeat"] == "weekly" and row["due_date"] and bool(row["done"]) != bool(state["done"]):
+            recur(db, row, bool(state["done"]))
     return {"ok": True}
+
+
+def recur(db, row, finished):
+    """Finishing a weekly task schedules next week's copy once; reopening it withdraws that copy if untouched."""
+    if finished and not row["next_id"]:
+        next_id = str(uuid4())
+        db.execute("""INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,key_task,repeat)
+            SELECT ?,title,assignee_id,?,created_by,key_task,repeat FROM family_tasks WHERE id=?""",
+                   (next_id, (date.fromisoformat(row["due_date"]) + timedelta(days=7)).isoformat(), row["id"]))
+        db.execute("UPDATE family_tasks SET next_id=? WHERE id=?", (next_id, row["id"]))
+    elif not finished and row["next_id"]:
+        db.execute("UPDATE family_tasks SET deleted=1,version=version+1 WHERE id=? AND done=0 AND submitted_by IS NULL", (row["next_id"],))
+        db.execute("UPDATE family_tasks SET next_id=NULL WHERE id=?", (row["id"],))
 
 
 def ical_text(value):

@@ -168,5 +168,21 @@ class MealTests(unittest.TestCase):
         self.assertFalse(self.post('items', {'name': 'Tomates cerises'}).json()['duplicate'])
 
 
+    def test_weekly_tasks_come_back_once_and_withdraw_on_reopen(self):
+        self.assertEqual(self.post('tasks', {'title': 'Poubelles', 'repeat': 'weekly'}).status_code, 422)
+        task = self.post('tasks', {'title': 'Poubelles', 'repeat': 'weekly', 'due_date': '2026-11-02'}).json()['id']
+        tasks = lambda: sorted((t['due_date'], t['done']) for t in self.client.get('/api/family/tasks').json()['tasks'])
+        change = lambda version, done: self.client.patch('/api/family/tasks/' + task, headers=self.headers, json={'version': version, 'done': done})
+        change(1, True).raise_for_status()
+        self.assertEqual(tasks(), [('2026-11-02', 1), ('2026-11-09', 0)])
+        change(2, False).raise_for_status()
+        self.assertEqual(tasks(), [('2026-11-02', 0)])
+        change(3, True).raise_for_status()
+        change(4, True).raise_for_status()
+        self.assertEqual(tasks(), [('2026-11-02', 1), ('2026-11-09', 0)])
+        self.client.patch('/api/family/tasks/' + task, headers=self.headers, json={'version': 5, 'deleted': True}).raise_for_status()
+        self.assertEqual(tasks(), [('2026-11-09', 0)])
+
+
 if __name__ == '__main__':
     unittest.main()

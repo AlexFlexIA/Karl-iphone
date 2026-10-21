@@ -52,7 +52,7 @@ export function Me({ ctx, googleEnabled, installPrompt, onPersonal, onSignOut, o
           <Icon name="chat" />{member.assistant ? 'Hermes activé' : 'Hermes désactivé'}<span className="sr-only"> pour {member.name}</span></button>}
         {user.role === 'admin' && !member.is_owner && member.id !== user.id && <button className="btn btn-secondary btn-small" disabled={ctx.disabled}
           onClick={() => void ctx.run(async () => { await ctx.api('family/members/' + member.id, { method: 'PATCH', body: JSON.stringify({ active: !member.active }) }) },
-            member.active ? `Accès de ${member.name} désactivé sur tous ses appareils.` : `Accès de ${member.name} réactivé. Créez une nouvelle invitation.`)}>
+            member.active ? `Accès de ${member.name} désactivé sur tous ses appareils.` : `Accès de ${member.name} réactivé. ${user.is_owner ? 'Créez-lui une nouvelle invitation.' : 'Le propriétaire doit lui créer un nouveau lien.'}`)}>
           {member.active ? 'Désactiver' : 'Réactiver'}</button>}
       </li>)}</ul>
     </section>

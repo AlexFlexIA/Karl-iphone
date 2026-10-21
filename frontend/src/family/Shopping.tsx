@@ -55,6 +55,9 @@ export function Shopping({ ctx }: { ctx: Ctx }) {
   }
   const row = (item: Item) => <ItemRow ctx={ctx} item={item} key={item.id} onEdit={() => setEditing(item)} />
   const [mode, setMode] = useState<'list' | 'meals'>(() => readPreference('shopping-mode') === 'meals' ? 'meals' : 'list')
+  // The lock only makes sense on the list with something left to take; the toggle is hidden otherwise, so release it.
+  const shopping = mode === 'list' && pending.length > 0
+  useEffect(() => { if (!shopping) awake.set(false) }, [shopping, awake.set])
   const choose = (next: 'list' | 'meals') => { setMode(next); writePreference('shopping-mode', next) }
   // No shop is connected from KARL: the list is copied as text, ready to paste where the order is prepared.
   function copyForDrive() {

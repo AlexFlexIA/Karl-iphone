@@ -17,9 +17,9 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const [installHint, setInstallHint] = useState(false)
   useEffect(() => { setInstallHint(!standalone() && readPreference('install-hint') !== 'hidden') }, [])
   // A nudge KARL computes itself: menu ingredients for the coming week that nobody has put on the list yet.
-  // Recomputed when the menu or the list changes, and every five minutes for next week's days.
+  // Recomputed when the menu or the list changes, and every minute for recipe edits and next week's days.
   const menuSignature = [data?.meals.map(meal => meal.id + meal.version).join(), data?.items.map(item => item.id + item.version).join(),
-    Math.floor(ctx.now.getTime() / 300000)].join('|')
+    Math.floor(ctx.now.getTime() / 60000)].join('|')
   const [missing, setMissing] = useState<ShoppingLine[]>([])
   const { api } = ctx
   useEffect(() => {

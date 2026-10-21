@@ -264,5 +264,17 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('Dentiste (pour le 2099-11-03) (rappel 03/11 09:00)', complete.call_args.args[0][0]['content'])
 
 
+    def test_threads_can_be_renamed_only_by_their_member(self):
+        thread = str(uuid4())
+        with patch.object(assistant, 'complete', AsyncMock(return_value='ok')):
+            self.ask(thread, 'Une longue question')
+        path = '/api/family/assistant/threads/' + thread
+        self.assertEqual(self.client.patch(path, headers=self.headers, json={'title': '  '}).status_code, 422)
+        self.assertEqual(self.client.patch(path, headers=self.headers, json={'title': 'Vacances'}).status_code, 200)
+        self.assertEqual([t['title'] for t in self.client.get('/api/family/assistant').json()['threads']], ['Vacances'])
+        self.join('teen@example.test')
+        self.assertEqual(self.client.patch(path, headers=self.headers, json={'title': 'Piraté'}).status_code, 404)
+
+
 if __name__ == '__main__':
     unittest.main()

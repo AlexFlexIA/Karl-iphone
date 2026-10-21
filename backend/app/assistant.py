@@ -319,6 +319,22 @@ def thread(thread_id: UUID, user=Depends(allowed)):
     return {"messages": [public(row) for row in reversed(rows)]}
 
 
+class Rename(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+
+
+@router.patch("/threads/{thread_id}")
+def rename(thread_id: UUID, body: Rename, user=Depends(allowed)):
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(422, "Donnez un nom à la conversation.")
+    with database() as db, db:
+        if not thread_for(db, thread_id, user):
+            raise HTTPException(404, "Conversation introuvable.")
+        db.execute("UPDATE family_threads SET title=? WHERE id=?", (title, str(thread_id)))
+    return {"ok": True}
+
+
 @router.delete("/threads/{thread_id}")
 def forget(thread_id: UUID, user=Depends(allowed)):
     with database() as db, db:

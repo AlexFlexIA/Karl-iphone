@@ -4,7 +4,7 @@ import { Icon } from '../icons'
 import { readDraft, writeDraft } from './api'
 import type { Ctx } from './context'
 import { capitalize, clock, dateKey, longDate, plural } from './model'
-import { Empty, Person, ScreenHead, Skeleton } from './ui'
+import { Empty, Person, ScreenHead, Sheet, Skeleton } from './ui'
 
 type Proposal = {
   kind?: 'event' | 'task' | 'item' | 'memory' | 'meal' | 'recipe'; title: string; event_id?: string | null; ref?: string | null
@@ -41,6 +41,7 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
   const [waiting, setWaiting] = useState(false)
   const [draft, setDraft] = useState(() => readDraft('assistant'))
   const [problem, setProblem] = useState('')
+  const [renaming, setRenaming] = useState<Thread | null>(null)
   const end = useRef<HTMLDivElement>(null)
   const field = useRef<HTMLTextAreaElement>(null)
   const { api } = ctx
@@ -130,11 +131,22 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
             <span className="row-title">{item.title}</span>
             <span className="row-meta">{capitalize(longDate(dateKey(new Date(item.updated_at))))}</span>
           </button>
+          <button className="icon-btn" aria-label={'Renommer « ' + item.title + ' »'} disabled={ctx.disabled} onClick={() => setRenaming(item)}><Icon name="edit" /></button>
           <button className="icon-btn" aria-label={'Supprimer « ' + item.title + ' »'} disabled={ctx.disabled} onClick={() => void forget(item.id)}><Icon name="trash" /></button>
         </li>)}</ul>
         </details>}
       </div>
 
+      <Sheet open={!!renaming} title="Renommer la conversation" onClose={() => setRenaming(null)}>
+        {renaming && <form className="sheet-body" onSubmit={async event => {
+          event.preventDefault()
+          const title = String(new FormData(event.currentTarget).get('title') ?? '')
+          if (await ctx.run(async () => { await api('family/assistant/threads/' + renaming.id, { method: 'PATCH', body: JSON.stringify({ title }) }) }, 'Conversation renommée.')) { setRenaming(null); void load() }
+        }}>
+          <div className="field"><label htmlFor="thread-title">Nom</label><input id="thread-title" name="title" required maxLength={80} defaultValue={renaming.title} /></div>
+          <div className="sheet-actions"><span /><button className="btn btn-primary" disabled={ctx.disabled}><Icon name="check" />Enregistrer</button></div>
+        </form>}
+      </Sheet>
       <div className="assistant-chat">
         <h2 className="sr-only">{current ? current.title : 'Nouvelle conversation'}</h2>
         <div className="chat-log" role="log" aria-live="polite" aria-busy={loading || waiting}>

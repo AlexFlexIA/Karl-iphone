@@ -4,7 +4,7 @@ import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
 import type { FamilyEvent, Member } from './model'
-import { addDays, capitalize, clock, dateKey, declined, eventDay, fromKey, longDate, plural, shortDate, timeKey } from './model'
+import { addDays, capitalize, clock, dateKey, declined, fromKey, onDay, longDate, plural, shortDate, timeKey } from './model'
 import { Thread } from './Thread'
 import { Badge, badgeOf, ScreenHead, Skeleton } from './ui'
 
@@ -98,9 +98,7 @@ export function Planning({ ctx, week, setWeek, day, setDay }: { ctx: Ctx; week: 
   const [mode, setMode] = useState<'list' | 'lanes'>(() => readPreference('planning-mode') === 'lanes' ? 'lanes' : 'list')
   const days = Array.from({ length: 7 }, (_, index) => dateKey(addDays(week, index)))
   const events = ctx.data?.events ?? []
-  // Midnight bounds: an overnight activity that ends at 10:00 still belongs to that morning.
-  const dayStart = new Date(day + 'T00:00:00')
-  const ofDay = events.filter(event => eventDay(event) === day || (new Date(event.starts_at) < dayStart && new Date(event.ends_at) > dayStart))
+  const ofDay = events.filter(event => onDay(event, day))
   const dishes = ([['lunch', 'midi'], ['dinner', 'soir']] as const).map(([slot, name]) => [name, (ctx.data?.meals ?? []).filter(meal => meal.day === day && meal.slot === slot).map(meal => meal.title).join(', ')] as const)
     .filter(([, titles]) => titles)
   const choose = (next: 'list' | 'lanes') => { setMode(next); writePreference('planning-mode', next) }
@@ -116,7 +114,7 @@ export function Planning({ ctx, week, setWeek, day, setDay }: { ctx: Ctx; week: 
     </div>
     <div className="days" role="group" aria-label="Jour affiché">
       {days.map(key => {
-        const count = events.filter(event => eventDay(event) === key).length
+        const count = events.filter(event => onDay(event, key)).length
         const date = fromKey(key)
         return <button key={key} className="day" aria-pressed={key === day} aria-label={`${capitalize(longDate(key))}${key === ctx.today ? ", aujourd’hui" : ''}, ${count ? plural(count, 'activité') : 'aucune activité'}`} onClick={() => setDay(key)}>
           <span className="day-name">{date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}</span>

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Icon } from '../icons'
 import type { Ctx } from './context'
 import type { FamilyEvent } from './model'
-import { addDays, dateKey, fromKey, timeKey } from './model'
+import { addDays, dateKey, fromKey, longDate, timeKey } from './model'
 import { Badge } from './ui'
 
 export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: FamilyEvent | null; day: string; onDone: (day: string) => void }) {
@@ -21,13 +21,16 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
   const [ask, setAsk] = useState(!!event?.ask)
   const creator = event?.created_by ?? ctx.user.id
   const invited = [...new Set([...attendees, driver])].filter(id => id && id !== creator)
+  // A trip over several days keeps its number of days when only the title or the hours change.
+  const span = start && end ? Math.round((fromKey(dateKey(end)).getTime() - fromKey(dateKey(start)).getTime()) / 86400000) : 0
   const overnight = to <= from
+  const endDay = span > 0 ? span : overnight ? 1 : 0
 
   async function save(submit: FormEvent<HTMLFormElement>) {
     submit.preventDefault()
     const form = new FormData(submit.currentTarget)
     const startsAt = new Date(`${date}T${from}`)
-    const endsAt = new Date(`${overnight ? dateKey(addDays(fromKey(date), 1)) : date}T${to}`)
+    const endsAt = new Date(`${dateKey(addDays(fromKey(date), endDay))}T${to}`)
     const payload = {
       title: form.get('title'), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), attendees,
       driver_id: driver || null, location: form.get('location'), recurrence: form.get('recurrence'), ask: ask && invited.length > 0,
@@ -46,9 +49,9 @@ export function EventForm({ ctx, event, day, onDone }: { ctx: Ctx; event: Family
     <div className="compose-row compose-row-3">
       <div className="field"><label htmlFor="event-date">Jour</label><input id="event-date" type="date" required value={date} onChange={change => setDate(change.target.value)} /></div>
       <div className="field"><label htmlFor="event-from">Début</label><input id="event-from" type="time" required value={from} onChange={change => setFrom(change.target.value)} /></div>
-      <div className="field"><label htmlFor="event-to">Fin</label><input id="event-to" type="time" required value={to} onChange={change => setTo(change.target.value)} aria-describedby={overnight ? 'event-overnight' : undefined} /></div>
+      <div className="field"><label htmlFor="event-to">Fin</label><input id="event-to" type="time" required value={to} onChange={change => setTo(change.target.value)} aria-describedby={endDay ? 'event-overnight' : undefined} /></div>
     </div>
-    {overnight && <p className="note" id="event-overnight"><Icon name="clock" />Se termine le lendemain à {to}.</p>}
+    {endDay > 0 && <p className="note" id="event-overnight"><Icon name="clock" />Se termine {endDay === 1 ? 'le lendemain' : 'le ' + longDate(dateKey(addDays(fromKey(date), endDay)))} à {to}.</p>}
     <fieldset className="chips"><legend>Qui participe ?</legend>
       {ctx.members.map(member => <label className="chip" key={member.id}>
         <input type="checkbox" checked={attendees.includes(member.id)} onChange={change => setAttendees(list => change.target.checked ? [...list, member.id] : list.filter(id => id !== member.id))} />

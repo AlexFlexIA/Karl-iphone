@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../icons'
 import { readPreference, writePreference } from './api'
 import type { Ctx } from './context'
-import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, plural, remindsMe } from './model'
+import { addDays, capitalize, clock, dateKey, eventDay, fromKey, longDate, onDay, plural, remindsMe } from './model'
 import type { FamilyEvent, ShoppingLine } from './model'
 import { QuickAdd } from './Shopping'
 import { TaskRow } from './Tasks'
@@ -25,7 +25,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
       .then(result => { if (live) setMissing(result.lines.filter((line: ShoppingLine) => !line.on_list)) }, () => { if (live) setMissing([]) })
     return () => { live = false }
   }, [api, today, data?.at])
-  const events = data?.events.filter(event => eventDay(event) === today) ?? []
+  const events = data?.events.filter(event => onDay(event, today)) ?? []
   const pending = data?.items.filter(item => !item.checked) ?? []
   const mine = data?.tasks.filter(task => !task.done && task.assignee_id === user.id) ?? []
   const shared = data?.tasks.filter(task => !task.done && !task.assignee_id) ?? []

@@ -51,6 +51,11 @@ export function due(date: string | null, today: string): { label: string; late: 
 // Reminders concern the person the task is for, or its author when it is for everyone.
 export const remindsMe = (task: Task, me: string) => !task.done && !!task.remind_at && (task.assignee_id === me || (!task.assignee_id && task.created_by === me))
 export const eventDay = (event: FamilyEvent) => dateKey(new Date(event.starts_at))
+// True when the activity starts that day or is still running at its midnight (a sleepover's morning).
+export const onDay = (event: FamilyEvent, day: string) => {
+  const midnight = new Date(day + 'T00:00:00')
+  return eventDay(event) === day || (new Date(event.starts_at) < midnight && new Date(event.ends_at) > midnight)
+}
 
 export const answerText: Record<Answer, string> = { pending: 'attend sa réponse', yes: 'a accepté', no: 'a décliné' }
 // A member who declined is no longer counted as taking part or driving.

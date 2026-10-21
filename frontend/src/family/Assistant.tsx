@@ -86,6 +86,20 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
       void load()
     }
   }
+  // Several proposals in one reply (a week of dinners) can be confirmed in one tap, still one explicit tap.
+  async function acceptAll(message: Message) {
+    const open = message.proposals.map((proposal, index) => [proposal, index] as const).filter(([proposal]) => !doneOf(proposal))
+    let made = 0
+    await ctx.run(async () => {
+      for (const [, index] of open) {
+        const { id } = await api(`family/assistant/messages/${message.id}/accept`, { method: 'POST', body: JSON.stringify({ index }) })
+        made += 1
+        setMessages(previous => previous.map(item => item.id !== message.id ? item
+          : { ...item, proposals: item.proposals.map((proposal, at) => at === index ? { ...proposal, [kindOf(proposal) === 'event' ? 'event_id' : 'ref']: id } : proposal) }))
+      }
+    })
+    if (made) ctx.notify(`${plural(made, 'proposition acceptée', 'propositions acceptées')}.`)
+  }
   async function accept(message: Message, index: number) {
     await ctx.run(async () => {
       const { id } = await api(`family/assistant/messages/${message.id}/accept`, { method: 'POST', body: JSON.stringify({ index }) })
@@ -154,6 +168,8 @@ export function Assistant({ ctx }: { ctx: Ctx }) {
                   : <button className="btn btn-gold" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void accept(message, index)}><Icon name="plus" />{verbs[kind].action}</button>}
               </div>
             })}
+            {message.proposals.filter(proposal => !doneOf(proposal)).length > 1 && <button className="btn btn-secondary accept-all" disabled={ctx.disabled || typeof message.id !== 'number'} onClick={() => void acceptAll(message)}>
+              <Icon name="check" />Tout accepter ({message.proposals.filter(proposal => !doneOf(proposal)).length})</button>}
           </div>)}
           {waiting && <p className="bubble bubble-assistant bubble-wait"><span className="bubble-who">Hermes</span>Hermes réfléchit…</p>}
           <div ref={end} />

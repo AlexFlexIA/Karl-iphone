@@ -44,10 +44,13 @@ function Lanes({ ctx, events, day }: { ctx: Ctx; events: FamilyEvent[]; day: str
   const showNow = nowHour >= first && nowHour <= last
   const scroller = useRef<HTMLDivElement>(null)
   const focusHour = showNow ? nowHour : Math.min(...events.map(event => hourOf(new Date(event.starts_at), day)), last)
+  const centred = useRef('')
   useEffect(() => {
-    // On narrow screens, open the lanes on "now" (or the first activity) rather than at dawn.
+    // On narrow screens, open the lanes on "now" (or the first activity) rather than at dawn, once per day shown:
+    // the clock ticking or a refresh must not pull back someone scrolling to the evening.
     const node = scroller.current
-    if (!node) return
+    if (!node || centred.current === day) return
+    centred.current = day
     const track = node.scrollWidth - 104
     node.scrollLeft = Math.max(0, ((focusHour - first) / span) * track - 32)
   }, [day, first, span, focusHour])

@@ -158,6 +158,10 @@ def briefing(db, user):
         "```karl-task",
         '{"title": "Prendre rendez-vous chez le dentiste", "due_date": "2026-10-24", "assignee": "' + user["name"] + '"}',
         "```",
+        "Ajoute \"repeat\": \"weekly\" pour une tâche qui revient chaque semaine (une date est alors obligatoire) :",
+        "```karl-task",
+        '{"title": "Sortir les poubelles", "due_date": "2026-10-26", "repeat": "weekly"}',
+        "```",
         "```karl-item",
         '{"name": "Lait", "quantity": "2 bouteilles", "category": "Frais"}',
         "```",
@@ -191,9 +195,10 @@ def proposal(kind, raw, user, names):
     if kind == "task":
         assignee = raw.get("assignee")
         task = TaskInput(title=raw.get("title", ""), due_date=raw.get("due_date") or None,
+                         repeat="weekly" if raw.get("repeat") in ("weekly", "chaque semaine") else "none",
                          assignee_id=names.get(assignee.strip().casefold(), user["id"]) if isinstance(assignee, str) else user["id"])
         return {"kind": "task", "title": task.title, "due_date": task.due_date.isoformat() if task.due_date else None,
-                "assignee_id": task.assignee_id, "ref": None}
+                "assignee_id": task.assignee_id, "repeat": task.repeat, "ref": None}
     if kind == "item":
         item = ItemInput(name=raw.get("name", ""), quantity=raw.get("quantity") or "", category=raw.get("category") or "Autres")
         return {"kind": "item", "title": item.name, "quantity": item.quantity.strip(), "category": item.category, "ref": None}
@@ -366,8 +371,8 @@ def make_task(db, proposal, user):
     if db.execute("SELECT COUNT(*) FROM family_tasks WHERE deleted=0").fetchone()[0] >= 2000:
         raise HTTPException(409, "La liste est pleine. Retirez les anciennes tâches.")
     task_id = str(uuid4())
-    db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by) VALUES(?,?,?,?,?)",
-               (task_id, proposal["title"], assignee, proposal["due_date"], user["id"]))
+    db.execute("INSERT INTO family_tasks(id,title,assignee_id,due_date,created_by,repeat) VALUES(?,?,?,?,?,?)",
+               (task_id, proposal["title"], assignee, proposal["due_date"], user["id"], proposal.get("repeat", "none")))
     return task_id
 
 

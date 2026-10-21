@@ -236,5 +236,16 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('Arroser (aujourd’hui)', context)
 
 
+    def test_hermes_can_propose_a_weekly_task_but_only_with_a_date(self):
+        text = ('```karl-task\n{"title": "Poubelles", "due_date": "2026-11-02", "repeat": "weekly"}\n```'
+                '\n```karl-task\n{"title": "Sans date", "repeat": "weekly"}\n```')
+        with patch.object(assistant, 'complete', AsyncMock(return_value=text)):
+            reply = self.ask(str(uuid4())).json()['message']
+        self.assertEqual([(p['title'], p['repeat']) for p in reply['proposals']], [('Poubelles', 'weekly')])
+        self.client.post(f"/api/family/assistant/messages/{reply['id']}/accept", headers=self.headers, json={'index': 0}).raise_for_status()
+        [task] = self.client.get('/api/family/tasks').json()['tasks']
+        self.assertEqual((task['title'], task['repeat']), ('Poubelles', 'weekly'))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -31,5 +31,16 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Recherche « déjà sur la liste » mise en commun ; renommer un article ne crée plus de doublon.
 - Longueur des lignes d’ingrédients plafonnée.
 
+- Transparence : chaque proposition d’Hermes peut dire pourquoi ; l’écran Hermes détaille ce qu’il voit. README remis en cohérence ; tests du rapprochement des noms et des rayons.
+
+### Relecture de code complète (10 défauts trouvés, 10 corrigés, chacun avec un test)
+- « 1/2 citron » lu comme 1 « /2 citron » ; lignes d’ingrédients tronquées sans prévenir.
+- Rayon deviné faux dès qu’un nom contient « de » (« farine de blé » rangée en légumes).
+- Supprimer une conversation Hermes rendait des messages au quota du jour.
+- Annuler un retrait, décocher ou restaurer pouvait recréer un doublon sur la liste.
+- Une réponse tardive d’Hermes s’affichait dans une autre conversation.
+- Défauts antérieurs : météo « indisponible » jusqu’à 30 min après minuit ; activité de nuit absente le lendemain matin ; activité impossible à modifier si un membre a été désactivé.
+- Un seul appel Hermes partagé entre profils ; propositions de tâches revérifiées à l’acceptation.
+
 ## Toujours bloqué
 - Intégration E.Leclerc Drive et déploiement : le code (`karl-deploy`, serveur `mcp-leclerc-drive`) n’est pas accessible depuis cette session (GitHub répond « introuvable »).

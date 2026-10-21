@@ -30,7 +30,6 @@ Chaque ligne correspond à un commit testé (tests automatiques, build, parcours
 - Test de parcours navigateur dans le dépôt (`frontend/e2e/smoke.mjs`).
 - Recherche « déjà sur la liste » mise en commun ; renommer un article ne crée plus de doublon.
 - Longueur des lignes d’ingrédients plafonnée.
-
 - Transparence : chaque proposition d’Hermes peut dire pourquoi ; l’écran Hermes détaille ce qu’il voit. README remis en cohérence ; tests du rapprochement des noms et des rayons.
 
 ### Relecture de code complète (10 défauts trouvés, 10 corrigés, chacun avec un test)

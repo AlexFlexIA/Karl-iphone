@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from . import hermes
 from .crons import CronSource
-from . import family_auth, family
+from . import assistant, family_auth, family, weather
 from .store import db_path, database
 
 
@@ -28,7 +28,9 @@ async def lifespan(app: FastAPI):
         db.execute("CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id, id)")
     app.state.chat_lock = asyncio.Lock()
     app.state.crons = CronSource()
+    app.state.forecast = weather.Forecast()
     family_auth.initialize()
+    assistant.initialize()
     yield
 
 
@@ -46,6 +48,8 @@ def authenticate(credentials: HTTPAuthorizationCredentials | None = Depends(secu
 app = FastAPI(title="KARL", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(family_auth.router)
 app.include_router(family.router)
+app.include_router(assistant.router)
+app.include_router(weather.router)
 
 
 @app.post("/api/family/bootstrap", dependencies=[Depends(authenticate)])

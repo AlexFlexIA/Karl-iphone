@@ -78,10 +78,33 @@ def initialize():
         if not db.execute("SELECT 1 FROM family_members WHERE is_owner=1").fetchone():
             db.execute("INSERT INTO family_members(id,name,role,is_owner) VALUES(?,?,'admin',1)",
                        (str(uuid4()), os.getenv("KARL_FAMILY_OWNER_NAME", "Administrateur")[:60]))
+        # Additive migration: each member keeps one shape/colour slot for life, so the
+        # interface never has to infer identity from list order or colour alone.
+        if "badge" not in {row[1] for row in db.execute("PRAGMA table_info(family_members)")}:
+            db.execute("ALTER TABLE family_members ADD COLUMN badge INTEGER")
+        for row in db.execute("SELECT id FROM family_members WHERE badge IS NULL ORDER BY is_owner DESC,rowid").fetchall():
+            db.execute("UPDATE family_members SET badge=? WHERE id=?", (free_badge(db), row["id"]))
+        # Additive migration: an activity can ask its invitees to confirm instead of only informing them.
+        if "ask" not in {row[1] for row in db.execute("PRAGMA table_info(family_events)")}:
+            db.execute("ALTER TABLE family_events ADD COLUMN ask INTEGER NOT NULL DEFAULT 0")
+        db.execute("""CREATE TABLE IF NOT EXISTS family_event_replies (
+            event_id TEXT NOT NULL REFERENCES family_events(id), member_id TEXT NOT NULL REFERENCES family_members(id),
+            answer TEXT NOT NULL CHECK(answer IN ('pending','yes','no')), answered_at TEXT, PRIMARY KEY(event_id, member_id))""")
+        # Additive migration: key tasks need a parent's validation once a member reports them done.
+        columns = {row[1] for row in db.execute("PRAGMA table_info(family_tasks)")}
+        for column, kind in [("key_task", "INTEGER NOT NULL DEFAULT 0"), ("submitted_by", "TEXT REFERENCES family_members(id)"),
+                             ("submitted_at", "TEXT"), ("validated_by", "TEXT REFERENCES family_members(id)")]:
+            if column not in columns:
+                db.execute(f"ALTER TABLE family_tasks ADD COLUMN {column} {kind}")
+
+
+def free_badge(db):
+    used = {row[0] for row in db.execute("SELECT badge FROM family_members WHERE badge IS NOT NULL")}
+    return next(slot for slot in range(len(used) + 1) if slot not in used)
 
 
 def user_public(row):
-    return {"id": row["id"], "name": row["name"], "role": row["role"], "is_owner": bool(row["is_owner"])}
+    return {"id": row["id"], "name": row["name"], "role": row["role"], "is_owner": bool(row["is_owner"]), "badge": row["badge"]}
 
 
 def find_session(request):
@@ -169,7 +192,7 @@ class Invite(BaseModel):
 def members(user=Depends(member)):
     with database() as db:
         rows = db.execute("SELECT * FROM family_members ORDER BY is_owner DESC,name COLLATE NOCASE").fetchall()
-    return {"members": [{**user_public(row), "active": bool(row["active"]),
+    return {"members": [{**user_public(row), "active": bool(row["active"]), "assistant": bool(row["assistant"]),
                          **({"email": row["email"]} if user["role"] == "admin" else {})} for row in rows if row["active"] or user["role"] == "admin"]}
 
 
@@ -185,7 +208,8 @@ def invite(body: Invite, user=Depends(admin)):
             # Reissuing an invitation never changes an existing member's role.
         else:
             member_id = str(uuid4())
-            db.execute("INSERT INTO family_members(id,name,email,role) VALUES(?,?,?,?)", (member_id, body.name, body.email, body.role))
+            db.execute("INSERT INTO family_members(id,name,email,role,badge) VALUES(?,?,?,?,?)",
+                       (member_id, body.name, body.email, body.role, free_badge(db)))
         db.execute("DELETE FROM family_invites WHERE member_id=? OR expires_at<=?", (member_id, int(time.time())))
         db.execute("INSERT INTO family_invites VALUES(?,?,?)", (digest(token), member_id, int(time.time()) + 7 * 86400))
     return {"url": origin() + "/#invitation=" + token, "expires_in_days": 7}
@@ -210,7 +234,8 @@ def accept(body: Accept, request: Request, response: Response):
 
 
 class Access(BaseModel):
-    active: bool
+    active: bool | None = None
+    assistant: bool | None = None
 
 
 @router.patch("/family/members/{member_id}")
@@ -219,6 +244,10 @@ def change_access(member_id: str, body: Access, user=Depends(admin)):
         target = db.execute("SELECT * FROM family_members WHERE id=?", (member_id,)).fetchone()
         if not target:
             raise HTTPException(404, "Membre introuvable.")
+        if body.assistant is not None:
+            db.execute("UPDATE family_members SET assistant=? WHERE id=?", (body.assistant, member_id))
+        if body.active is None:
+            return {"ok": True}
         if target["is_owner"] or target["id"] == user["id"]:
             raise HTTPException(403, "Cet accès ne peut pas être désactivé ici.")
         db.execute("UPDATE family_members SET active=? WHERE id=?", (body.active, member_id))

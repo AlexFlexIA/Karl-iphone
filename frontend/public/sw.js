@@ -1,5 +1,5 @@
 // Cache only the public shell. Conversations and API responses never enter CacheStorage.
-const CACHE = 'karl-shell-v2'
+const CACHE = 'karl-shell-v9'
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('karl-shell-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()))
